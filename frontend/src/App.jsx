@@ -3,6 +3,7 @@ import { useState } from "react";
 import "./App.css";
 import CartValidator from "./CartValidator";
 import OrderForm from "./OrderForm";
+import PaymentStatus from "./PaymentStatus";
 
 function App() {
   const [form, setForm] = useState({
@@ -129,6 +130,7 @@ function App() {
       </section>
      <CartValidator />
      <OrderForm />
+     <PaymentStatus />
     </main>
   );
 }

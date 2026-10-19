@@ -56,10 +56,15 @@ const orderSchema = new mongoose.Schema(
       type: Date,
       default: Date.now
     },
-    status: {
+        status: {
       type: String,
       enum: ["Placed", "Cancelled", "Completed"],
       default: "Placed"
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Success", "Failed"],
+      default: "Pending"
     }
   },
   { timestamps: true }

@@ -134,3 +134,98 @@ button:disabled {
   text-align: center;
   font-size: 12px;
 }
+
+/* Payment Status Section */
+.payment-status {
+  width: 100%;
+  max-width: 600px;
+  margin: 28px auto;
+  padding: 24px;
+  box-sizing: border-box;
+  background: linear-gradient(145deg, #17132f, #282052);
+  border: 1px solid #6554c0;
+  border-radius: 18px;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(31, 20, 80, 0.2);
+}
+
+.payment-status h2 {
+  margin-top: 0;
+  color: #c8baff;
+  font-size: 1.5rem;
+}
+
+.payment-status p {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.payment-status input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 16px 0;
+  padding: 13px;
+  border: 1px solid #8b7be8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #201743;
+  font-size: 15px;
+}
+
+.payment-status .payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.payment-status button {
+  flex: 1 1 180px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #7562e8;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.payment-status button:hover:not(:disabled) {
+  background: #927fff;
+}
+
+.payment-status button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payment-status .payment-result {
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.payment-status .payment-result.success {
+  color: #9df5c0;
+}
+
+.payment-status .payment-result.failed {
+  color: #ffb4bd;
+}
+
+@media (max-width: 480px) {
+  .payment-status {
+    padding: 18px;
+  }
+
+  .payment-status .payment-actions {
+    flex-direction: column;
+  }
+
+  .payment-status button {
+    width: 100%;
+    flex-basis: auto;
+  }
+}
