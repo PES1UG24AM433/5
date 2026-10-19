@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import "./App.css";
+import CartValidator from "./CartValidator";
 
 function App() {
   const [form, setForm] = useState({
@@ -125,6 +126,7 @@ function App() {
           Your account details are handled securely.
         </p>
       </section>
+     <CartValidator />
     </main>
   );
 }
