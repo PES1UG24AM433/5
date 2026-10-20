@@ -115,4 +115,56 @@ router.post(
   }
 );
 
+router.patch(
+  "/:orderId/cancel",
+  async (req, res) => {
+    const { orderId } = req.params;
+
+    if (!mongoose.isValidObjectId(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID."
+      });
+    }
+
+    try {
+      const order = await Order.findById(orderId);
+
+      if (!order) {
+        return res.status(404).json({
+          success: false,
+          message: "Order not found."
+        });
+      }
+
+      if (order.status !== "Placed") {
+        return res.status(409).json({
+          success: false,
+          message: `This order cannot be cancelled because its status is ${order.status}.`
+        });
+      }
+
+      order.status = "Cancelled";
+      await order.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Your order has been cancelled successfully.",
+        order: {
+          id: order._id,
+          status: order.status
+        }
+      });
+    } catch (error) {
+      console.error("Order cancellation error:", error.message);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to cancel the order. Please try again."
+      });
+    }
+  }
+);
+
+
 module.exports = router;
