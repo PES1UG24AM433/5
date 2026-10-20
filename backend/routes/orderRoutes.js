@@ -7,6 +7,82 @@ const Order = require("../models/Order");
 
 const router = express.Router();
 
+router.get("/", async (req, res) => {
+  const { studentId, studentEmail } = req.query;
+
+  if (!studentId || !studentEmail) {
+    return res.status(400).json({
+      success: false,
+      message: "Student ID and email are required to look up orders."
+    });
+  }
+
+  try {
+    const orders = await Order.find({
+      studentId: studentId.trim(),
+      studentEmail: studentEmail.trim().toLowerCase()
+    })
+      .sort({ orderTime: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      orders: orders.map((order) => ({
+        id: order._id,
+        items: order.items,
+        totalAmount: order.totalAmount,
+        orderTime: order.orderTime,
+        status: order.status,
+        paymentStatus: order.paymentStatus
+      }))
+    });
+  } catch (error) {
+    console.error("Order history error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to retrieve order history."
+    });
+  }
+});
+
+router.get("/:orderId", async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.orderId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid order ID."
+    });
+  }
+
+  try {
+    const order = await Order.findById(req.params.orderId).lean();
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found."
+      });
+    }
+
+    return res.json({
+      success: true,
+      order: {
+        id: order._id,
+        items: order.items,
+        totalAmount: order.totalAmount,
+        orderTime: order.orderTime,
+        status: order.status,
+        paymentStatus: order.paymentStatus
+      }
+    });
+  } catch (error) {
+    console.error("Order lookup error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to retrieve the order."
+    });
+  }
+});
+
 router.post(
   "/",
   [

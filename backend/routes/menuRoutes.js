@@ -12,7 +12,7 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const items = await MenuItem.find()
-      .select("_id name price available stock")
+      .select("_id name price foodType available stock")
       .sort({ name: 1 })
       .lean();
 
@@ -37,6 +37,7 @@ router.post(
     body("name").trim().notEmpty().withMessage("Item name is required"),
     body("price").isFloat({ min: 0 }).withMessage("Price must be non-negative"),
     body("stock").isInt({ min: 0 }).withMessage("Stock must be a non-negative whole number"),
+    body("foodType").optional().isIn(["Veg", "Non-Veg"]).withMessage("Food type must be Veg or Non-Veg"),
     body("available").optional().isBoolean()
   ],
   async (req, res) => {
@@ -51,12 +52,13 @@ router.post(
     }
 
     try {
-      const { name, price, stock, available = true } = req.body;
+      const { name, price, stock, foodType, available = true } = req.body;
 
       const item = await MenuItem.create({
         name: name.trim(),
         price: Number(price),
         stock: Number(stock),
+        foodType,
         available
       });
 
@@ -83,6 +85,7 @@ router.patch(
     body("name").optional().trim().notEmpty(),
     body("price").optional().isFloat({ min: 0 }),
     body("stock").optional().isInt({ min: 0 }),
+    body("foodType").optional().isIn(["Veg", "Non-Veg"]),
     body("available").optional().isBoolean()
   ],
   async (req, res) => {
