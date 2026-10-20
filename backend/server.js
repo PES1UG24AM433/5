@@ -9,6 +9,7 @@ const { body, validationResult } = require("express-validator");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const staffAuthRoutes = require("./routes/staffAuthRoutes");
 
 
 const app = express();
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/staff/auth", staffAuthRoutes);
 
 const studentSchema = new mongoose.Schema(
   {
