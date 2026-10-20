@@ -13,6 +13,11 @@ const menuItemSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    foodType: {
+      type: String,
+      enum: ["Veg", "Non-Veg"],
+      trim: true
+    },
     available: {
       type: Boolean,
       default: true
