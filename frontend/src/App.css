@@ -229,3 +229,30 @@ button:disabled {
     flex-basis: auto;
   }
 }
+
+.menu-list {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.menu-item {
+  padding: 16px;
+  border: 1px solid #e1dcf5;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #292044;
+}
+
+.menu-item h3 {
+  margin: 0 0 10px;
+}
+
+.menu-item p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+
+.menu-item button {
+  margin-top: 8px;
+}
