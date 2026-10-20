@@ -70,8 +70,11 @@ router.post(
           });
         }
 
-        const subtotal = Number((menuItem.price * quantity).toFixed(2));
-        totalAmount = Number((totalAmount + subtotal).toFixed(2));
+        const unitPricePaise = Math.round(menuItem.price * 100);
+        const subtotalPaise = unitPricePaise * quantity;
+
+        const subtotal = subtotalPaise / 100;
+        totalAmount = Math.round(totalAmount * 100 + subtotalPaise) / 100;
 
         orderItems.push({
           productId: menuItem._id,
