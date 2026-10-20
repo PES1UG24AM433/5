@@ -4,6 +4,7 @@ import "./App.css";
 import CartValidator from "./CartValidator";
 import OrderForm from "./OrderForm";
 import PaymentStatus from "./PaymentStatus";
+import MenuList from "./MenuList";
 
 function App() {
   const [form, setForm] = useState({
@@ -128,6 +129,7 @@ function App() {
           Your account details are handled securely.
         </p>
       </section>
+     <MenuList />
      <CartValidator />
      <OrderForm />
      <PaymentStatus />

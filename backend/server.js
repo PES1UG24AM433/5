@@ -10,6 +10,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const staffAuthRoutes = require("./routes/staffAuthRoutes");
+const menuRoutes = require("./routes/menuRoutes");
 
 
 const app = express();
@@ -20,6 +21,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/staff/auth", staffAuthRoutes);
+app.use("/api/menu", menuRoutes);
 
 const studentSchema = new mongoose.Schema(
   {
