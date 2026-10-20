@@ -13,22 +13,32 @@ function OrderForm() {
   const [loading, setLoading] = useState(false);
   const [menuLoading, setMenuLoading] = useState(true);
 
+  async function loadMenu() {
+    const response = await fetch("http://localhost:5000/api/menu");
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Unable to load menu.");
+    }
+
+    const availableItems = data.items.filter(
+      (item) => item.available && item.stock > 0
+    );
+
+    setItems(availableItems);
+    setSelectedId((currentId) =>
+      availableItems.some((item) => item._id === currentId)
+        ? currentId
+        : availableItems[0]?._id || ""
+    );
+
+    return availableItems;
+  }
+
   useEffect(() => {
-    async function loadMenu() {
+    async function initializeMenu() {
       try {
-        const response = await fetch("http://localhost:5000/api/menu");
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-          throw new Error(data.message || "Unable to load menu.");
-        }
-
-        const availableItems = data.items.filter(
-          (item) => item.available && item.stock > 0
-        );
-
-        setItems(availableItems);
-        setSelectedId(availableItems[0]?._id || "");
+        await loadMenu();
       } catch (err) {
         setError(err.message || "Unable to load menu.");
       } finally {
@@ -36,7 +46,7 @@ function OrderForm() {
       }
     }
 
-    loadMenu();
+    initializeMenu();
   }, []);
 
   const selectedItem = items.find((item) => item._id === selectedId);
@@ -48,6 +58,11 @@ function OrderForm() {
 
     const parsedQuantity = Number(quantity);
 
+    if (!studentId.trim() || !studentName.trim() || !studentEmail.trim()) {
+      setError("Please fill in all student details.");
+      return;
+    }
+
     if (!selectedItem) {
       setError("Please select an available menu item.");
       return;
@@ -58,24 +73,54 @@ function OrderForm() {
       return;
     }
 
-    if (parsedQuantity > selectedItem.stock) {
-      setError(`Only ${selectedItem.stock} portion(s) are available.`);
-      return;
-    }
-
     setLoading(true);
 
     try {
+      // Refresh menu details before checkout.
+      const menuResponse = await fetch("http://localhost:5000/api/menu");
+      const menuData = await menuResponse.json();
+
+      if (!menuResponse.ok || !menuData.success) {
+        throw new Error(
+          menuData.message || "Unable to verify menu availability."
+        );
+      }
+
+      const latestItem = menuData.items.find(
+        (item) => item._id === selectedId
+      );
+
+      const availableItems = menuData.items.filter(
+        (item) => item.available && item.stock > 0
+      );
+
+      setItems(availableItems);
+
+      if (!latestItem || !latestItem.available || latestItem.stock < 1) {
+        setSelectedId(availableItems[0]?._id || "");
+        throw new Error(
+          latestItem
+            ? `${latestItem.name} is currently unavailable. Please select another item.`
+            : "This menu item no longer exists. Please select another item."
+        );
+      }
+
+      if (parsedQuantity > latestItem.stock) {
+        throw new Error(
+          `Only ${latestItem.stock} portion(s) of ${latestItem.name} are currently available. Please adjust your quantity.`
+        );
+      }
+
       const response = await fetch("http://localhost:5000/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          studentId,
-          studentName,
-          studentEmail,
+          studentId: studentId.trim(),
+          studentName: studentName.trim(),
+          studentEmail: studentEmail.trim(),
           items: [
             {
-              productId: selectedItem._id,
+              productId: latestItem._id,
               quantity: parsedQuantity
             }
           ]
@@ -195,7 +240,7 @@ function OrderForm() {
           type="submit"
           disabled={loading || menuLoading || items.length === 0}
         >
-          {loading ? "Placing order..." : "Place Pre-Order"}
+          {loading ? "Checking availability..." : "Place Pre-Order"}
         </button>
       </form>
     </section>
