@@ -11,7 +11,10 @@ const router = express.Router();
 // Public: view menu items
 router.get("/", async (req, res) => {
   try {
-    const items = await MenuItem.find().sort({ name: 1 });
+    const items = await MenuItem.find()
+      .select("_id name price available stock")
+      .sort({ name: 1 })
+      .lean();
 
     return res.json({
       success: true,
