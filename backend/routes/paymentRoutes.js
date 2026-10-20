@@ -2,11 +2,12 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const Order = require("../models/Order");
+const { authenticateStudent } = require("../middleware/studentAuthMiddleware");
 
 const router = express.Router();
 
 // Simulated payment endpoint
-router.post("/:orderId", async (req, res) => {
+router.post("/:orderId", authenticateStudent, async (req, res) => {
   const { orderId } = req.params;
   const { outcome } = req.body;
 
@@ -27,7 +28,11 @@ router.post("/:orderId", async (req, res) => {
   try {
     const order = await Order.findById(orderId);
 
-    if (!order) {
+    if (
+      !order ||
+      order.studentId !== req.student.studentId ||
+      order.studentEmail !== req.student.email
+    ) {
       return res.status(404).json({
         success: false,
         message: "Order not found."
