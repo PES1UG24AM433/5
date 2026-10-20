@@ -10,6 +10,7 @@ const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const staffAuthRoutes = require("./routes/staffAuthRoutes");
+const studentAuthRoutes = require("./routes/studentAuthRoutes");
 const menuRoutes = require("./routes/menuRoutes");
 
 
@@ -21,30 +22,9 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/staff/auth", staffAuthRoutes);
+app.use("/api/auth", studentAuthRoutes);
 app.use("/api/menu", menuRoutes);
-
-const studentSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true, trim: true },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true
-    },
-    studentId: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true
-    },
-    password: { type: String, required: true }
-  },
-  { timestamps: true }
-);
-
-const Student = mongoose.model("Student", studentSchema);
+const Student = require("./models/Student");
 
 app.get("/", (req, res) => {
   res.send("Canteen Pre-Order System API is running!");

@@ -4,23 +4,15 @@ const mongoose = require("mongoose");
 const { body, validationResult } = require("express-validator");
 const MenuItem = require("../models/MenuItem");
 const Order = require("../models/Order");
+const { authenticateStudent } = require("../middleware/studentAuthMiddleware");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
-  const { studentId, studentEmail } = req.query;
-
-  if (!studentId || !studentEmail) {
-    return res.status(400).json({
-      success: false,
-      message: "Student ID and email are required to look up orders."
-    });
-  }
-
+router.get("/", authenticateStudent, async (req, res) => {
   try {
     const orders = await Order.find({
-      studentId: studentId.trim(),
-      studentEmail: studentEmail.trim().toLowerCase()
+      studentId: req.student.studentId,
+      studentEmail: req.student.email
     })
       .sort({ orderTime: -1 })
       .lean();
@@ -45,7 +37,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:orderId", async (req, res) => {
+router.get("/:orderId", authenticateStudent, async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.orderId)) {
     return res.status(400).json({
       success: false,
@@ -56,7 +48,11 @@ router.get("/:orderId", async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId).lean();
 
-    if (!order) {
+    if (
+      !order ||
+      order.studentId !== req.student.studentId ||
+      order.studentEmail !== req.student.email
+    ) {
       return res.status(404).json({
         success: false,
         message: "Order not found."
@@ -85,10 +81,8 @@ router.get("/:orderId", async (req, res) => {
 
 router.post(
   "/",
+  authenticateStudent,
   [
-    body("studentId").trim().notEmpty().withMessage("Student ID is required"),
-    body("studentName").trim().notEmpty().withMessage("Student name is required"),
-    body("studentEmail").trim().isEmail().withMessage("Enter a valid student email"),
     body("items").isArray({ min: 1 }).withMessage("Your order must contain at least one item"),
     body("items.*.productId")
       .isMongoId()
@@ -109,7 +103,7 @@ router.post(
     }
 
     try {
-      const { studentId, studentName, studentEmail, items } = req.body;
+      const { items } = req.body;
 
       // Combine duplicate product IDs so stock and totals are checked correctly.
       const quantities = new Map();
@@ -162,9 +156,9 @@ router.post(
       }
 
       const order = await Order.create({
-        studentId: studentId.trim(),
-        studentName: studentName.trim(),
-        studentEmail: studentEmail.trim().toLowerCase(),
+        studentId: req.student.studentId,
+        studentName: req.student.name,
+        studentEmail: req.student.email,
         items: orderItems,
         totalAmount
       });
@@ -196,6 +190,7 @@ router.post(
 
 router.patch(
   "/:orderId/cancel",
+  authenticateStudent,
   async (req, res) => {
     const { orderId } = req.params;
 
@@ -209,7 +204,11 @@ router.patch(
     try {
       const order = await Order.findById(orderId);
 
-      if (!order) {
+      if (
+        !order ||
+        order.studentId !== req.student.studentId ||
+        order.studentEmail !== req.student.email
+      ) {
         return res.status(404).json({
           success: false,
           message: "Order not found."

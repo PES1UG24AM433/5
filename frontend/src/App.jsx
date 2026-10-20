@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import MenuList from "./MenuList";
-import { apiRequest } from "./api";
+import {
+  apiRequest,
+  clearStudentSession,
+  getStoredStudent,
+  saveStudentSession
+} from "./api";
 
 const emptyForm = {
   name: "",
@@ -9,6 +14,29 @@ const emptyForm = {
   studentId: "",
   password: ""
 };
+
+const CART_STORAGE_KEY = "campus-crave-cart";
+
+function loadStoredCart() {
+  try {
+    const storedCart = window.localStorage.getItem(CART_STORAGE_KEY);
+    const parsedCart = storedCart ? JSON.parse(storedCart) : [];
+
+    if (!Array.isArray(parsedCart)) {
+      return [];
+    }
+
+    return parsedCart.filter(
+      (item) =>
+        item &&
+        typeof item._id === "string" &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0
+    );
+  } catch {
+    return [];
+  }
+}
 
 function navigateTo(path) {
   window.history.pushState({}, "", path);
@@ -29,24 +57,60 @@ function useRoute() {
 
 function App() {
   const route = useRoute();
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(loadStoredCart);
   const [latestOrder, setLatestOrder] = useState(null);
+  const [student, setStudent] = useState(getStoredStudent);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+
+  useEffect(() => {
+    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    if (!student) {
+      return;
+    }
+
+    apiRequest("/api/auth/me").catch(() => {
+      clearStudentSession();
+      setStudent(null);
+    });
+  }, [student]);
 
   function navigate(path) {
     setMobileMenuOpen(false);
     navigateTo(path);
   }
 
+  function handleLogin(loginData) {
+    saveStudentSession(loginData.token, loginData.student);
+    setStudent(loginData.student);
+    navigate("/");
+  }
+
+  function handleLogout() {
+    clearStudentSession();
+    setStudent(null);
+    navigate("/");
+  }
+
   function addToCart(item) {
+    if (!item.available || item.stock < 1) {
+      return;
+    }
+
     setCart((currentCart) => {
       const existing = currentCart.find((cartItem) => cartItem._id === item._id);
       if (existing) {
         return currentCart.map((cartItem) =>
           cartItem._id === item._id
-            ? { ...cartItem, quantity: Math.min(cartItem.quantity + 1, item.stock) }
+            ? {
+                ...cartItem,
+                ...item,
+                quantity: Math.min(cartItem.quantity + 1, item.stock)
+              }
             : cartItem
         );
       }
@@ -57,9 +121,20 @@ function App() {
   function updateCartQuantity(id, quantity) {
     setCart((currentCart) =>
       currentCart
-        .map((item) => (item._id === id ? { ...item, quantity } : item))
+        .map((item) =>
+          item._id === id
+            ? {
+                ...item,
+                quantity: Math.max(1, Math.min(quantity, item.stock))
+              }
+            : item
+        )
         .filter((item) => item.quantity > 0)
     );
+  }
+
+  function removeFromCart(id) {
+    setCart((currentCart) => currentCart.filter((item) => item._id !== id));
   }
 
   function clearCart() {
@@ -95,6 +170,16 @@ function App() {
             <button className={route === "/register" ? "nav-link active" : "nav-link"} type="button" onClick={() => navigate("/register")}>
               Register
             </button>
+            {student ? (
+              <>
+                <span className="student-greeting">Hi, {student.name}</span>
+                <button className="nav-link" type="button" onClick={handleLogout}>Log out</button>
+              </>
+            ) : (
+              <button className={route === "/login" ? "nav-link active" : "nav-link"} type="button" onClick={() => navigate("/login")}>
+                Log in
+              </button>
+            )}
             <button className="cart-link" type="button" onClick={() => navigate("/cart")}>
               Cart <span>{cartCount}</span>
             </button>
@@ -105,17 +190,19 @@ function App() {
       <main>
         {route === "/" && <HomePage onAddToCart={addToCart} />}
         {route === "/register" && <RegisterPage onNavigate={navigate} />}
-        {route === "/login" && <LoginPage onNavigate={navigate} />}
+        {route === "/login" && <LoginPage onNavigate={navigate} onLogin={handleLogin} />}
         {route === "/cart" && (
           <CartPage
             cart={cart}
             onNavigate={navigate}
             onUpdateQuantity={updateCartQuantity}
+            onRemoveItem={removeFromCart}
             onClearCart={clearCart}
             onOrderCreated={setLatestOrder}
+            student={student}
           />
         )}
-        {route === "/orders" && <OrdersPage />}
+        {route === "/orders" && <OrdersPage student={student} onNavigate={navigate} />}
         {route === "/payment" && <PaymentPage order={latestOrder} onNavigate={navigate} />}
         {route.startsWith("/orders/") && (
           <OrderConfirmationPage
@@ -220,16 +307,38 @@ function RegisterPage({ onNavigate }) {
   );
 }
 
-function LoginPage({ onNavigate }) {
+function LoginPage({ onNavigate, onLogin }) {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [feedback, setFeedback] = useState({ type: "", text: "" });
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setLoading(true);
+    setFeedback({ type: "", text: "" });
+    try {
+      const data = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify(form)
+      });
+      onLogin(data);
+    } catch (error) {
+      setFeedback({ type: "error", text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <section className="container narrow-page">
-      <PageIntro eyebrow="WELCOME BACK" title="Student login" description="Student login is ready for the authentication endpoint when it is added to the backend." />
-      <div className="form-card unavailable-card">
-        <div className="empty-icon">🔐</div>
-        <h2>Student authentication is not available yet</h2>
-        <p>The current backend supports student registration but does not expose a student login or token endpoint. No fake login is performed.</p>
-        <button className="button primary-button" type="button" onClick={() => onNavigate("/register")}>Create an account</button>
-      </div>
+      <PageIntro eyebrow="WELCOME BACK" title="Student login" description="Sign in to manage your cart and orders." />
+      <form className="form-card" onSubmit={handleSubmit}>
+        <FormField id="loginEmail" label="Email address" type="email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} />
+        <FormField id="loginPassword" label="Password" type="password" value={form.password} onChange={(value) => setForm({ ...form, password: value })} />
+        {feedback.text && <div className="notice error" role="alert">{feedback.text}</div>}
+        <button className="button primary-button" type="submit" disabled={loading}>{loading ? "Signing in..." : "Sign in"}</button>
+        <p className="form-footnote">Need an account? <button className="text-button" type="button" onClick={() => onNavigate("/register")}>Register</button></p>
+      </form>
     </section>
   );
 }
@@ -243,8 +352,15 @@ function FormField({ id, label, type = "text", value, onChange, required = true 
   );
 }
 
-function CartPage({ cart, onNavigate, onUpdateQuantity, onClearCart, onOrderCreated }) {
-  const [student, setStudent] = useState({ id: "", name: "", email: "" });
+function CartPage({
+  cart,
+  onNavigate,
+  onUpdateQuantity,
+  onRemoveItem,
+  onClearCart,
+  onOrderCreated,
+  student
+}) {
   const [feedback, setFeedback] = useState({ type: "", text: "" });
   const [loading, setLoading] = useState(false);
   const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -252,6 +368,10 @@ function CartPage({ cart, onNavigate, onUpdateQuantity, onClearCart, onOrderCrea
   async function placeOrder(event) {
     event.preventDefault();
     if (!cart.length) return;
+    if (!student) {
+      onNavigate("/login");
+      return;
+    }
     setLoading(true);
     setFeedback({ type: "", text: "" });
     try {
@@ -263,9 +383,6 @@ function CartPage({ cart, onNavigate, onUpdateQuantity, onClearCart, onOrderCrea
       const data = await apiRequest("/api/orders", {
         method: "POST",
         body: JSON.stringify({
-          studentId: student.id,
-          studentName: student.name,
-          studentEmail: student.email,
           items: cart.map((item) => ({ productId: item._id, quantity: item.quantity }))
         })
       });
@@ -290,17 +407,43 @@ function CartPage({ cart, onNavigate, onUpdateQuantity, onClearCart, onOrderCrea
             {cart.map((item) => (
               <div className="cart-row" key={item._id}>
                 <div><h3>{item.name}</h3><p>₹{item.price.toFixed(2)} each · {item.stock} available</p></div>
-                <div className="quantity-control"><button type="button" onClick={() => onUpdateQuantity(item._id, item.quantity - 1)}>-</button><strong>{item.quantity}</strong><button type="button" onClick={() => onUpdateQuantity(item._id, Math.min(item.quantity + 1, item.stock))}>+</button></div>
+                <div className="quantity-control">
+                  <button
+                    type="button"
+                    aria-label={`Decrease ${item.name} quantity`}
+                    onClick={() =>
+                      item.quantity === 1
+                        ? onRemoveItem(item._id)
+                        : onUpdateQuantity(item._id, item.quantity - 1)
+                    }
+                  >
+                    -
+                  </button>
+                  <strong>{item.quantity}</strong>
+                  <button
+                    type="button"
+                    aria-label={`Increase ${item.name} quantity`}
+                    disabled={item.quantity >= item.stock}
+                    onClick={() => onUpdateQuantity(item._id, item.quantity + 1)}
+                  >
+                    +
+                  </button>
+                </div>
                 <strong>₹{(item.price * item.quantity).toFixed(2)}</strong>
+                <button
+                  className="remove-item"
+                  type="button"
+                  onClick={() => onRemoveItem(item._id)}
+                >
+                  Remove
+                </button>
               </div>
             ))}
             <button className="text-button" type="button" onClick={onClearCart}>Clear cart</button>
           </div>
           <form className="form-card summary-card" onSubmit={placeOrder}>
             <h2>Order details</h2>
-            <FormField id="checkoutStudentId" label="Student ID" value={student.id} onChange={(value) => setStudent({ ...student, id: value })} />
-            <FormField id="checkoutStudentName" label="Full name" value={student.name} onChange={(value) => setStudent({ ...student, name: value })} />
-            <FormField id="checkoutStudentEmail" label="Email address" type="email" value={student.email} onChange={(value) => setStudent({ ...student, email: value })} />
+            {student ? <p className="signed-in-checkout">Ordering as <strong>{student.name}</strong> ({student.email})</p> : <div className="notice error">Please log in before placing your order.</div>}
             <div className="total-row"><span>Estimated total</span><strong>₹{subtotal.toFixed(2)}</strong></div>
             {feedback.text && <div className="notice error" role="alert">{feedback.text}</div>}
             <button className="button primary-button" type="submit" disabled={loading}>{loading ? "Validating order..." : "Place order"}</button>
@@ -351,19 +494,21 @@ function OrderSummary({ order }) {
   return <div className="order-summary">{order.items.map((item) => <div className="summary-line" key={item.productId}><span>{item.name} × {item.quantity}</span><strong>₹{item.subtotal.toFixed(2)}</strong></div>)}<div className="total-row"><span>Total</span><strong>₹{order.totalAmount.toFixed(2)}</strong></div><p className="status-pill">{order.status}</p></div>;
 }
 
-function OrdersPage() {
-  const [lookup, setLookup] = useState({ studentId: "", email: "" });
+function OrdersPage({ student, onNavigate }) {
   const [orders, setOrders] = useState([]);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function findOrders(event) {
     event.preventDefault();
+    if (!student) {
+      onNavigate("/login");
+      return;
+    }
     setLoading(true);
     setFeedback("");
     try {
-      const query = new URLSearchParams({ studentId: lookup.studentId, studentEmail: lookup.email });
-      const data = await apiRequest(`/api/orders?${query.toString()}`);
+      const data = await apiRequest("/api/orders");
       setOrders(data.orders);
       if (!data.orders.length) setFeedback("No orders found for these details.");
     } catch (error) {
@@ -373,7 +518,7 @@ function OrdersPage() {
     }
   }
 
-  return <section className="container narrow-page"><PageIntro eyebrow="ORDER HISTORY" title="My orders" description="Look up orders using the student details supplied at checkout. Full authenticated history will be available when student login is added." /><form className="form-card" onSubmit={findOrders}><FormField id="historyStudentId" label="Student ID" value={lookup.studentId} onChange={(value) => setLookup({ ...lookup, studentId: value })} /><FormField id="historyEmail" label="Email address" type="email" value={lookup.email} onChange={(value) => setLookup({ ...lookup, email: value })} />{feedback && <div className="notice" role="status">{feedback}</div>}<button className="button primary-button" type="submit" disabled={loading}>{loading ? "Searching..." : "Find my orders"}</button></form>{orders.length > 0 && <div className="order-history">{orders.map((order) => <article className="form-card history-card" key={order.id}><div><p className="eyebrow">ORDER {order.id}</p><h2>₹{order.totalAmount.toFixed(2)}</h2><p>{new Date(order.orderTime).toLocaleString()}</p></div><span className="status-pill">{order.status}</span></article>)}</div>}</section>;
+  return <section className="container narrow-page"><PageIntro eyebrow="ORDER HISTORY" title="My orders" description={student ? `Signed in as ${student.email}.` : "Sign in to view your order history."} /><form className="form-card" onSubmit={findOrders}>{!student && <div className="notice error">You must be signed in to view orders.</div>}{feedback && <div className="notice" role="status">{feedback}</div>}<button className="button primary-button" type="submit" disabled={loading || !student}>{loading ? "Searching..." : "Load my orders"}</button></form>{orders.length > 0 && <div className="order-history">{orders.map((order) => <article className="form-card history-card" key={order.id}><div><p className="eyebrow">ORDER {order.id}</p><h2>₹{order.totalAmount.toFixed(2)}</h2><p>{new Date(order.orderTime).toLocaleString()}</p></div><span className="status-pill">{order.status}</span></article>)}</div>}</section>;
 }
 
 function PaymentPage({ order, onNavigate }) {

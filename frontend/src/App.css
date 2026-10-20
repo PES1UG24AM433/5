@@ -152,6 +152,12 @@ button:disabled {
   text-align: center;
 }
 
+.student-greeting {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .mobile-toggle {
   display: none;
   padding: 8px 10px;
@@ -574,7 +580,7 @@ button:disabled {
 
 .cart-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 16px;
   padding: 16px 0;
@@ -615,10 +621,31 @@ button:disabled {
   background: white;
 }
 
+.quantity-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.remove-item {
+  padding: 5px 0;
+  border: 0;
+  color: var(--danger);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
 .summary-card h2 {
   margin-top: 0;
   margin-bottom: 24px;
   font-size: 22px;
+}
+
+.signed-in-checkout {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .total-row {
@@ -853,6 +880,11 @@ button:disabled {
 
   .quantity-control {
     grid-column: 1 / -1;
+  }
+
+  .remove-item {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 
   .button-row .button {
