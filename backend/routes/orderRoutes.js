@@ -11,6 +11,12 @@ const {
 
 const router = express.Router();
 
+const STAFF_STATUS_TRANSITIONS = {
+  Placed: ["Completed", "Cancelled"],
+  Cancelled: [],
+  Completed: []
+};
+
 // Staff-only incoming order queue.
 // This route must appear before /:orderId so "incoming" is not treated as an order ID.
 router.get(
@@ -45,6 +51,86 @@ router.get(
       return res.status(500).json({
         success: false,
         message: "Unable to retrieve incoming orders."
+      });
+    }
+  }
+);
+
+router.patch(
+  "/:orderId/status",
+  authenticateStaff,
+  authorizeStaffRoles("staff", "manager"),
+  [
+    body("status")
+      .isString()
+      .withMessage("A valid order status is required")
+      .trim()
+  ],
+  async (req, res) => {
+    const { orderId } = req.params;
+    const errors = validationResult(req);
+
+    if (!mongoose.isValidObjectId(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID."
+      });
+    }
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid order status.",
+        errors: errors.array().map((error) => error.msg)
+      });
+    }
+
+    const { status } = req.body;
+    const allowedStatuses = Object.keys(STAFF_STATUS_TRANSITIONS);
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid order status. Allowed statuses are: ${allowedStatuses.join(", ")}.`
+      });
+    }
+
+    try {
+      const order = await Order.findById(orderId);
+
+      if (!order) {
+        return res.status(404).json({
+          success: false,
+          message: "Order not found."
+        });
+      }
+
+      const permittedTransitions = STAFF_STATUS_TRANSITIONS[order.status] || [];
+
+      if (!permittedTransitions.includes(status)) {
+        return res.status(409).json({
+          success: false,
+          message: `Invalid status transition from ${order.status} to ${status}.`
+        });
+      }
+
+      order.status = status;
+      await order.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Order status updated to ${order.status}.`,
+        order: {
+          id: order._id,
+          status: order.status
+        }
+      });
+    } catch (error) {
+      console.error("Order status update error:", error.message);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to update the order status. Please try again."
       });
     }
   }
@@ -148,8 +234,6 @@ router.post(
 
     try {
       const { items } = req.body;
-
-      // Combine duplicate product IDs so stock and totals are checked correctly.
       const quantities = new Map();
 
       for (const item of items) {
