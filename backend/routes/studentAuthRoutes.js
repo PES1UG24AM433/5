@@ -8,6 +8,66 @@ const { authenticateStudent } = require("../middleware/studentAuthMiddleware");
 const router = express.Router();
 
 router.post(
+  "/register",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email").trim().isEmail().withMessage("Enter a valid email"),
+    body("studentId").trim().notEmpty().withMessage("Student ID is required"),
+    body("password")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters long")
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: "Please correct the registration details",
+        errors: errors.array().map((error) => error.msg)
+      });
+    }
+
+    try {
+      const name = req.body.name.trim();
+      const email = req.body.email.trim().toLowerCase();
+      const studentId = req.body.studentId.trim();
+      const existingStudent = await Student.findOne({
+        $or: [{ email }, { studentId }]
+      });
+
+      if (existingStudent) {
+        return res.status(409).json({
+          success: false,
+          message: "An account with this email or student ID already exists"
+        });
+      }
+
+      const password = await bcrypt.hash(req.body.password, 12);
+      await Student.create({ name, email, studentId, password });
+
+      return res.status(201).json({
+        success: true,
+        message: "Student registered successfully"
+      });
+    } catch (error) {
+      if (error.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message: "An account with these details already exists"
+        });
+      }
+
+      console.error("Registration error:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Registration failed. Please try again."
+      });
+    }
+  }
+);
+
+router.post(
   "/login",
   [
     body("email").trim().isEmail().withMessage("Enter a valid email"),
@@ -35,6 +95,14 @@ router.post(
         return res.status(401).json({
           success: false,
           message: "Invalid email or password."
+        });
+      }
+
+      if (!process.env.JWT_SECRET) {
+        console.error("Student login error: JWT_SECRET is not configured.");
+        return res.status(500).json({
+          success: false,
+          message: "Unable to log in. Please try again."
         });
       }
 
