@@ -691,13 +691,39 @@ button:disabled {
   margin-top: 22px;
 }
 
+.order-detail-row,
 .summary-line {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
   font-size: 14px;
+}
+
+.order-detail-row strong {
+  text-align: right;
+}
+
+.summary-line span {
+  display: grid;
+  gap: 4px;
+}
+
+.summary-line small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.order-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.order-statuses .status-pill {
+  margin-right: 0;
 }
 
 .status-pill,

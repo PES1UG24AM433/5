@@ -374,6 +374,7 @@ function App() {
           <OrderConfirmationPage
             orderId={route.split("/")[2]}
             fallbackOrder={latestOrder}
+            onOrderLoaded={setLatestOrder}
             onNavigate={navigate}
           />
         )}
@@ -1017,7 +1018,7 @@ function CartPage({
   async function placeOrder(event) {
     event.preventDefault();
 
-    if (!cart.length) return;
+    if (loading || !cart.length) return;
 
     if (!student) {
       onNavigate("/login");
@@ -1214,6 +1215,7 @@ function CartPage({
 function OrderConfirmationPage({
   orderId,
   fallbackOrder,
+  onOrderLoaded,
   onNavigate
 }) {
   const [order, setOrder] = useState(
@@ -1226,16 +1228,22 @@ function OrderConfirmationPage({
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    if (order) return;
+    if (order) {
+      onOrderLoaded(order);
+      return;
+    }
 
     apiRequest(
       `/api/orders/${encodeURIComponent(orderId)}`
     )
-      .then((data) => setOrder(data.order))
+      .then((data) => {
+        setOrder(data.order);
+        onOrderLoaded(data.order);
+      })
       .catch((requestError) =>
         setError(requestError.message)
       );
-  }, [order, orderId]);
+  }, [onOrderLoaded, order, orderId]);
 
   async function cancelOrder() {
     setCancelling(true);
@@ -1263,9 +1271,27 @@ function OrderConfirmationPage({
   return (
     <section className="container narrow-page">
       <PageIntro
-        eyebrow="ORDER CONFIRMED"
-        title="Thanks for your order"
-        description="Your order has been recorded by the canteen."
+        eyebrow={
+          order
+            ? "ORDER CONFIRMED"
+            : error
+              ? "ORDER UNAVAILABLE"
+              : "ORDER CONFIRMATION"
+        }
+        title={
+          order
+            ? "Thanks for your order"
+            : error
+              ? "We could not load this order"
+              : "Loading your order"
+        }
+        description={
+          order
+            ? "Your order has been recorded by the canteen."
+            : error
+              ? "The order confirmation could not be verified."
+              : "We are verifying your order with the canteen."
+        }
       />
 
       {error && (
@@ -1300,6 +1326,14 @@ function OrderConfirmationPage({
               Back to menu
             </button>
 
+            <button
+              className="button outline-button"
+              type="button"
+              onClick={() => onNavigate("/orders")}
+            >
+              View my orders
+            </button>
+
             {order.status === "Placed" && (
               <button
                 className="text-button"
@@ -1326,13 +1360,23 @@ function OrderConfirmationPage({
 function OrderSummary({ order }) {
   return (
     <div className="order-summary">
+      <div className="order-detail-row">
+        <span>Order date</span>
+        <strong>
+          {new Date(order.orderTime).toLocaleString()}
+        </strong>
+      </div>
+
       {order.items.map((item) => (
         <div
           className="summary-line"
           key={item.productId}
         >
           <span>
-            {item.name} × {item.quantity}
+            <strong>{item.name}</strong>
+            <small>
+              {item.quantity} × ₹{item.unitPrice.toFixed(2)}
+            </small>
           </span>
 
           <strong>
@@ -1348,7 +1392,12 @@ function OrderSummary({ order }) {
         </strong>
       </div>
 
-      <p className="status-pill">{order.status}</p>
+      <div className="order-statuses">
+        <p className="status-pill">Order: {order.status}</p>
+        <p className="status-pill">
+          Payment: {order.paymentStatus}
+        </p>
+      </div>
     </div>
   );
 }
