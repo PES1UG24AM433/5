@@ -797,8 +797,9 @@ function StaffLoginPage({ onNavigate, onLogin }) {
 
 function StaffOrdersPage({ staff, onNavigate }) {
   const [orders, setOrders] = useState([]);
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState({ type: "", text: "" });
   const [loading, setLoading] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState("");
 
   async function loadIncomingOrders() {
     if (!staff) {
@@ -807,16 +808,42 @@ function StaffOrdersPage({ staff, onNavigate }) {
     }
 
     setLoading(true);
-    setFeedback("");
+    setFeedback({ type: "", text: "" });
 
     try {
       const data = await staffApiRequest("/api/orders/incoming");
       setOrders(data.orders);
     } catch (error) {
       setOrders([]);
-      setFeedback(error.message);
+      setFeedback({ type: "error", text: error.message });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function updateOrderStatus(orderId, status) {
+    setUpdatingOrderId(orderId);
+    setFeedback({ type: "", text: "" });
+
+    try {
+      const data = await staffApiRequest(
+        `/api/orders/${encodeURIComponent(orderId)}/status`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ status })
+        }
+      );
+
+      await loadIncomingOrders();
+
+      setFeedback({
+        type: "success",
+        text: data.message || `Order status updated to ${status}.`
+      });
+    } catch (error) {
+      setFeedback({ type: "error", text: error.message });
+    } finally {
+      setUpdatingOrderId("");
     }
   }
 
@@ -839,14 +866,14 @@ function StaffOrdersPage({ staff, onNavigate }) {
         <PageIntro
           eyebrow="STAFF QUEUE"
           title="Incoming orders"
-          description="Review student pre-orders waiting to be processed."
+          description="Review student pre-orders and update their status as they are processed."
         />
 
         <button
           className="button outline-button refresh-button"
           type="button"
           onClick={loadIncomingOrders}
-          disabled={loading}
+          disabled={loading || Boolean(updatingOrderId)}
         >
           {loading ? "Refreshing..." : "Refresh queue"}
         </button>
@@ -867,15 +894,15 @@ function StaffOrdersPage({ staff, onNavigate }) {
         </p>
       </div>
 
-      {feedback && (
-        <div className="notice error" role="alert">
-          {feedback}
+      {feedback.text && (
+        <div className={`notice ${feedback.type}`} role={feedback.type === "error" ? "alert" : "status"}>
+          {feedback.text}
         </div>
       )}
 
       {loading && !orders.length ? (
         <LoadingState text="Loading incoming orders..." />
-      ) : orders.length === 0 && !feedback ? (
+      ) : orders.length === 0 && !feedback.text ? (
         <div className="form-card empty-state">
           <div className="empty-icon">✓</div>
           <h2>No incoming orders</h2>
@@ -895,7 +922,12 @@ function StaffOrdersPage({ staff, onNavigate }) {
       ) : (
         <div className="staff-order-list">
           {orders.map((order) => (
-            <StaffOrderCard key={order.id} order={order} />
+            <StaffOrderCard
+              key={order.id}
+              order={order}
+              updating={updatingOrderId === order.id}
+              onStatusUpdate={updateOrderStatus}
+            />
           ))}
         </div>
       )}
@@ -903,7 +935,7 @@ function StaffOrdersPage({ staff, onNavigate }) {
   );
 }
 
-function StaffOrderCard({ order }) {
+function StaffOrderCard({ order, updating, onStatusUpdate }) {
   return (
     <article className="form-card staff-order-card">
       <div className="staff-order-top">
@@ -962,6 +994,35 @@ function StaffOrderCard({ order }) {
         <strong>
           ₹{order.totalAmount.toFixed(2)}
         </strong>
+      </div>
+
+      <div className="staff-status-controls">
+        <div>
+          <p className="staff-order-label">Update status</p>
+          <span className="staff-status-help">
+            Placed orders can be marked Completed or Cancelled.
+          </span>
+        </div>
+
+        <div className="staff-status-actions">
+          <button
+            className="button primary-button"
+            type="button"
+            disabled={updating}
+            onClick={() => onStatusUpdate(order.id, "Completed")}
+          >
+            {updating ? "Updating..." : "Mark completed"}
+          </button>
+
+          <button
+            className="button outline-button"
+            type="button"
+            disabled={updating}
+            onClick={() => onStatusUpdate(order.id, "Cancelled")}
+          >
+            Cancel order
+          </button>
+        </div>
       </div>
     </article>
   );
