@@ -1,12 +1,54 @@
-
 const express = require("express");
 const mongoose = require("mongoose");
 const { body, validationResult } = require("express-validator");
 const MenuItem = require("../models/MenuItem");
 const Order = require("../models/Order");
 const { authenticateStudent } = require("../middleware/studentAuthMiddleware");
+const {
+  authenticateStaff,
+  authorizeStaffRoles
+} = require("../middleware/authMiddleware");
 
 const router = express.Router();
+
+// Staff-only incoming order queue.
+// This route must appear before /:orderId so "incoming" is not treated as an order ID.
+router.get(
+  "/incoming",
+  authenticateStaff,
+  authorizeStaffRoles("staff", "manager"),
+  async (req, res) => {
+    try {
+      const orders = await Order.find({
+        status: "Placed"
+      })
+        .sort({ orderTime: 1 })
+        .lean();
+
+      return res.json({
+        success: true,
+        orders: orders.map((order) => ({
+          id: order._id,
+          studentId: order.studentId,
+          studentName: order.studentName,
+          studentEmail: order.studentEmail,
+          items: order.items,
+          totalAmount: order.totalAmount,
+          orderTime: order.orderTime,
+          status: order.status,
+          paymentStatus: order.paymentStatus
+        }))
+      });
+    } catch (error) {
+      console.error("Incoming order queue error:", error.message);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to retrieve incoming orders."
+      });
+    }
+  }
+);
 
 router.get("/", authenticateStudent, async (req, res) => {
   try {
@@ -83,7 +125,9 @@ router.post(
   "/",
   authenticateStudent,
   [
-    body("items").isArray({ min: 1 }).withMessage("Your order must contain at least one item"),
+    body("items")
+      .isArray({ min: 1 })
+      .withMessage("Your order must contain at least one item"),
     body("items.*.productId")
       .isMongoId()
       .withMessage("Each item must have a valid product ID"),
@@ -243,6 +287,5 @@ router.patch(
     }
   }
 );
-
 
 module.exports = router;
