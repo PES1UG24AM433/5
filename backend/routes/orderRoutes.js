@@ -302,7 +302,8 @@ router.post(
           items: order.items,
           totalAmount: order.totalAmount,
           orderTime: order.orderTime,
-          status: order.status
+          status: order.status,
+          paymentStatus: order.paymentStatus
         }
       });
     } catch (error) {
