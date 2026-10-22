@@ -1,9 +1,15 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
 const AUTH_TOKEN_KEY = "campus-crave-student-token";
 const STUDENT_KEY = "campus-crave-student";
 
+const STAFF_TOKEN_KEY = "campus-crave-staff-token";
+const STAFF_KEY = "campus-crave-staff";
+
 export async function apiRequest(path, options = {}) {
   const token = window.sessionStorage.getItem(AUTH_TOKEN_KEY);
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -12,11 +18,39 @@ export async function apiRequest(path, options = {}) {
     },
     ...options
   });
+
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     throw new Error(
-      data.errors?.join(", ") || data.message || "The request could not be completed."
+      data.errors?.join(", ") ||
+        data.message ||
+        "The request could not be completed."
+    );
+  }
+
+  return data;
+}
+
+export async function staffApiRequest(path, options = {}) {
+  const token = window.sessionStorage.getItem(STAFF_TOKEN_KEY);
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers
+    },
+    ...options
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.errors?.join(", ") ||
+        data.message ||
+        "The request could not be completed."
     );
   }
 
@@ -39,6 +73,26 @@ export function getStoredStudent() {
     return storedStudent ? JSON.parse(storedStudent) : null;
   } catch {
     clearStudentSession();
+    return null;
+  }
+}
+
+export function saveStaffSession(token, staff) {
+  window.sessionStorage.setItem(STAFF_TOKEN_KEY, token);
+  window.sessionStorage.setItem(STAFF_KEY, JSON.stringify(staff));
+}
+
+export function clearStaffSession() {
+  window.sessionStorage.removeItem(STAFF_TOKEN_KEY);
+  window.sessionStorage.removeItem(STAFF_KEY);
+}
+
+export function getStoredStaff() {
+  try {
+    const storedStaff = window.sessionStorage.getItem(STAFF_KEY);
+    return storedStaff ? JSON.parse(storedStaff) : null;
+  } catch {
+    clearStaffSession();
     return null;
   }
 }
