@@ -1,5 +1,6 @@
 
 const express = require("express");
+const mongoose = require("mongoose");
 const { body, validationResult } = require("express-validator");
 const MenuItem = require("../models/MenuItem");
 const {
@@ -106,6 +107,13 @@ router.patch(
       });
     }
 
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid menu item ID."
+      });
+    }
+
     try {
       const item = await MenuItem.findByIdAndUpdate(
         req.params.id,
@@ -148,6 +156,13 @@ router.patch(
 
 // Staff only: remove a menu item
 router.delete("/:id", authenticateStaff, async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid menu item ID."
+    });
+  }
+
   try {
     const item = await MenuItem.findByIdAndDelete(req.params.id);
 

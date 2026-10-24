@@ -14,8 +14,8 @@ const router = express.Router();
 router.post(
   "/login",
   [
-    body("email").trim().isEmail().withMessage("Enter a valid email"),
-    body("password").notEmpty().withMessage("Password is required")
+    body("email").isString().withMessage("Enter a valid email").trim().isEmail().withMessage("Enter a valid email"),
+    body("password").isString().withMessage("Password is required").notEmpty().withMessage("Password is required")
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -37,6 +37,14 @@ router.post(
         return res.status(401).json({
           success: false,
           message: "Invalid email or password."
+        });
+      }
+
+      if (!process.env.JWT_SECRET) {
+        console.error("Staff login error: JWT_SECRET is not configured.");
+        return res.status(500).json({
+          success: false,
+          message: "Unable to log in. Please try again."
         });
       }
 

@@ -491,6 +491,14 @@ button:disabled {
   box-shadow: 0 0 0 3px var(--accent-light);
 }
 
+.field-error {
+  display: block;
+  margin-top: 6px;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .form-card > .primary-button {
   width: 100%;
 }
@@ -1167,4 +1175,3 @@ button:disabled {
     width: 100%;
   }
 }
-

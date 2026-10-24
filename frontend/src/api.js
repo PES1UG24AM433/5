@@ -3,21 +3,27 @@ const API_BASE_URL =
 
 const AUTH_TOKEN_KEY = "campus-crave-student-token";
 const STUDENT_KEY = "campus-crave-student";
-
 const STAFF_TOKEN_KEY = "campus-crave-staff-token";
 const STAFF_KEY = "campus-crave-staff";
 
-export async function apiRequest(path, options = {}) {
-  const token = window.sessionStorage.getItem(AUTH_TOKEN_KEY);
+async function request(path, options, tokenKey) {
+  const token = window.sessionStorage.getItem(tokenKey);
+  let response;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
-    },
-    ...options
-  });
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers
+      }
+    });
+  } catch {
+    throw new Error(
+      "Cannot connect to the server. Check your connection and try again."
+    );
+  }
 
   const data = await response.json().catch(() => ({}));
 
@@ -32,29 +38,12 @@ export async function apiRequest(path, options = {}) {
   return data;
 }
 
-export async function staffApiRequest(path, options = {}) {
-  const token = window.sessionStorage.getItem(STAFF_TOKEN_KEY);
+export function apiRequest(path, options = {}) {
+  return request(path, options, AUTH_TOKEN_KEY);
+}
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
-    },
-    ...options
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      data.errors?.join(", ") ||
-        data.message ||
-        "The request could not be completed."
-    );
-  }
-
-  return data;
+export function staffApiRequest(path, options = {}) {
+  return request(path, options, STAFF_TOKEN_KEY);
 }
 
 export function saveStudentSession(token, student) {
