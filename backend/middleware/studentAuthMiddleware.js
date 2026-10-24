@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 
 function authenticateStudent(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -18,6 +19,13 @@ function authenticateStudent(req, res, next) {
       return res.status(403).json({
         success: false,
         message: "Access denied. Student account required."
+      });
+    }
+
+    if (!mongoose.isValidObjectId(decoded.id)) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired authentication token."
       });
     }
 

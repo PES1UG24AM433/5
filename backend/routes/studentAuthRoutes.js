@@ -10,10 +10,11 @@ const router = express.Router();
 router.post(
   "/register",
   [
-    body("name").trim().notEmpty().withMessage("Name is required"),
-    body("email").trim().isEmail().withMessage("Enter a valid email"),
-    body("studentId").trim().notEmpty().withMessage("Student ID is required"),
+    body("name").isString().withMessage("Name is required").trim().notEmpty().withMessage("Name is required"),
+    body("email").isString().withMessage("Enter a valid email").trim().isEmail().withMessage("Enter a valid email"),
+    body("studentId").isString().withMessage("Student ID is required").trim().notEmpty().withMessage("Student ID is required"),
     body("password")
+      .isString()
       .isLength({ min: 8 })
       .withMessage("Password must be at least 8 characters long")
   ],
@@ -70,8 +71,8 @@ router.post(
 router.post(
   "/login",
   [
-    body("email").trim().isEmail().withMessage("Enter a valid email"),
-    body("password").notEmpty().withMessage("Password is required")
+    body("email").isString().withMessage("Enter a valid email").trim().isEmail().withMessage("Enter a valid email"),
+    body("password").isString().withMessage("Password is required").notEmpty().withMessage("Password is required")
   ],
   async (req, res) => {
     const errors = validationResult(req);

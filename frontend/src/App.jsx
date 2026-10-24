@@ -11,6 +11,11 @@ import {
   saveStudentSession,
   staffApiRequest
 } from "./api";
+import {
+  validateCartItems,
+  validateLogin,
+  validateRegistration
+} from "./validation";
 
 const emptyForm = {
   name: "",
@@ -156,6 +161,10 @@ function App() {
   }
 
   function updateCartQuantity(id, quantity) {
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return;
+    }
+
     setCart((currentCart) =>
       currentCart
         .map((item) =>
@@ -475,6 +484,7 @@ function HomePage({ onAddToCart }) {
 
 function RegisterPage({ onNavigate }) {
   const [form, setForm] = useState(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [feedback, setFeedback] = useState({
     type: "",
     text: ""
@@ -484,6 +494,16 @@ function RegisterPage({ onNavigate }) {
   async function handleSubmit(event) {
     event.preventDefault();
     setFeedback({ type: "", text: "" });
+    const errors = validateRegistration(form);
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setFeedback({
+        type: "error",
+        text: Object.values(errors).join(" ")
+      });
+      return;
+    }
+    setFieldErrors({});
     setLoading(true);
 
     try {
@@ -520,6 +540,7 @@ function RegisterPage({ onNavigate }) {
           id="name"
           label="Full name"
           value={form.name}
+          error={fieldErrors.name}
           onChange={(value) =>
             setForm({ ...form, name: value })
           }
@@ -530,6 +551,7 @@ function RegisterPage({ onNavigate }) {
           label="Email address"
           type="email"
           value={form.email}
+          error={fieldErrors.email}
           onChange={(value) =>
             setForm({ ...form, email: value })
           }
@@ -539,6 +561,7 @@ function RegisterPage({ onNavigate }) {
           id="studentId"
           label="Student ID"
           value={form.studentId}
+          error={fieldErrors.studentId}
           onChange={(value) =>
             setForm({ ...form, studentId: value })
           }
@@ -549,6 +572,7 @@ function RegisterPage({ onNavigate }) {
           label="Password"
           type="password"
           value={form.password}
+          error={fieldErrors.password}
           onChange={(value) =>
             setForm({ ...form, password: value })
           }
@@ -599,12 +623,23 @@ function LoginPage({ onNavigate, onLogin }) {
     type: "",
     text: ""
   });
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setLoading(true);
     setFeedback({ type: "", text: "" });
+    const errors = validateLogin(form);
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setFeedback({
+        type: "error",
+        text: Object.values(errors).join(" ")
+      });
+      return;
+    }
+    setFieldErrors({});
+    setLoading(true);
 
     try {
       const data = await apiRequest("/api/auth/login", {
@@ -637,6 +672,7 @@ function LoginPage({ onNavigate, onLogin }) {
           label="Email address"
           type="email"
           value={form.email}
+          error={fieldErrors.email}
           onChange={(value) =>
             setForm({ ...form, email: value })
           }
@@ -647,6 +683,7 @@ function LoginPage({ onNavigate, onLogin }) {
           label="Password"
           type="password"
           value={form.password}
+          error={fieldErrors.password}
           onChange={(value) =>
             setForm({ ...form, password: value })
           }
@@ -704,12 +741,22 @@ function StaffLoginPage({ onNavigate, onLogin }) {
   });
 
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   async function handleSubmit(event) {
     event.preventDefault();
-
-    setLoading(true);
     setFeedback({ type: "", text: "" });
+    const errors = validateLogin(form);
+    if (Object.keys(errors).length) {
+      setFieldErrors(errors);
+      setFeedback({
+        type: "error",
+        text: Object.values(errors).join(" ")
+      });
+      return;
+    }
+    setFieldErrors({});
+    setLoading(true);
 
     try {
       const data = await apiRequest("/api/staff/auth/login", {
@@ -752,6 +799,7 @@ function StaffLoginPage({ onNavigate, onLogin }) {
           label="Staff email address"
           type="email"
           value={form.email}
+          error={fieldErrors.email}
           onChange={(value) =>
             setForm({ ...form, email: value })
           }
@@ -762,6 +810,7 @@ function StaffLoginPage({ onNavigate, onLogin }) {
           label="Password"
           type="password"
           value={form.password}
+          error={fieldErrors.password}
           onChange={(value) =>
             setForm({ ...form, password: value })
           }
@@ -1035,7 +1084,8 @@ function FormField({
   type = "text",
   value,
   onChange,
-  required = true
+  required = true,
+  error = ""
 }) {
   return (
     <label className="form-field" htmlFor={id}>
@@ -1050,7 +1100,10 @@ function FormField({
           onChange(event.target.value)
         }
         required={required}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
       />
+      {error && <span className="field-error" id={`${id}-error`}>{error}</span>}
     </label>
   );
 }
@@ -1083,6 +1136,12 @@ function CartPage({
 
     if (!student) {
       onNavigate("/login");
+      return;
+    }
+
+    const cartError = validateCartItems(cart);
+    if (cartError) {
+      setFeedback({ type: "error", text: cartError });
       return;
     }
 
@@ -1576,6 +1635,7 @@ function PaymentPage({ order, onNavigate }) {
 
     setLoading(true);
     setMessage("");
+    setOutcome("");
 
     try {
       const data = await apiRequest(
@@ -1592,6 +1652,7 @@ function PaymentPage({ order, onNavigate }) {
       setMessage(data.message);
     } catch (error) {
       setMessage(error.message);
+      setOutcome("");
     } finally {
       setLoading(false);
     }
