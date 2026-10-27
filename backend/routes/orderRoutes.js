@@ -218,8 +218,10 @@ router.post(
       .isMongoId()
       .withMessage("Each item must have a valid product ID"),
     body("items.*.quantity")
-      .isInt({ min: 1 })
+      .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
       .withMessage("Each quantity must be a positive whole number")
+      .custom((quantity) => Number.isSafeInteger(Number(quantity)))
+      .withMessage("Each quantity must be a safe whole number"),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -238,11 +240,21 @@ router.post(
 
       for (const item of items) {
         const id = item.productId;
-        quantities.set(id, (quantities.get(id) || 0) + Number(item.quantity));
+        const quantity = Number(item.quantity);
+        const combinedQuantity = (quantities.get(id) || 0) + quantity;
+
+        if (!Number.isSafeInteger(combinedQuantity)) {
+          return res.status(400).json({
+            success: false,
+            message: "The requested quantity is too large."
+          });
+        }
+
+        quantities.set(id, combinedQuantity);
       }
 
       const orderItems = [];
-      let totalAmount = 0;
+      let totalPaise = 0;
 
       for (const [productId, quantity] of quantities) {
         const menuItem = await MenuItem.findById(productId);
@@ -268,11 +280,37 @@ router.post(
           });
         }
 
+        if (
+          !Number.isFinite(menuItem.price) ||
+          menuItem.price < 0 ||
+          !Number.isSafeInteger(Math.round(menuItem.price * 100))
+        ) {
+          console.error(`Invalid price configured for menu item ${productId}.`);
+          return res.status(500).json({
+            success: false,
+            message: "A menu item has an invalid price. Please try again later."
+          });
+        }
+
         const unitPricePaise = Math.round(menuItem.price * 100);
         const subtotalPaise = unitPricePaise * quantity;
 
+        if (!Number.isSafeInteger(subtotalPaise)) {
+          return res.status(400).json({
+            success: false,
+            message: "The order total is too large to process."
+          });
+        }
+
+        if (!Number.isSafeInteger(totalPaise + subtotalPaise)) {
+          return res.status(400).json({
+            success: false,
+            message: "The order total is too large to process."
+          });
+        }
+
         const subtotal = subtotalPaise / 100;
-        totalAmount = Math.round(totalAmount * 100 + subtotalPaise) / 100;
+        totalPaise += subtotalPaise;
 
         orderItems.push({
           productId: menuItem._id,
@@ -280,6 +318,15 @@ router.post(
           quantity,
           unitPrice: menuItem.price,
           subtotal
+        });
+      }
+
+      const totalAmount = totalPaise / 100;
+
+      if (!orderItems.length || !Number.isFinite(totalAmount)) {
+        return res.status(400).json({
+          success: false,
+          message: "Your order must contain valid items and quantities."
         });
       }
 

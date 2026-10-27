@@ -47,6 +47,14 @@ export function validateCartItems(items) {
     if (!item || !isValidObjectId(item._id)) {
       return "A cart item is invalid. Please refresh the menu and try again.";
     }
+    if (
+      typeof item.name !== "string" ||
+      !Number.isFinite(item.price) ||
+      item.price < 0 ||
+      item.available !== true
+    ) {
+      return "A cart item is no longer available. Please refresh the menu and try again.";
+    }
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
       return "Each cart quantity must be a positive whole number.";
     }

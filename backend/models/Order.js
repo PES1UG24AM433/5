@@ -19,34 +19,41 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       lowercase: true
     },
-    items: [
-      {
-        productId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "MenuItem",
-          required: true
-        },
-        name: {
-          type: String,
-          required: true
-        },
-        quantity: {
-          type: Number,
-          required: true,
-          min: 1
-        },
-        unitPrice: {
-          type: Number,
-          required: true,
-          min: 0
-        },
-        subtotal: {
-          type: Number,
-          required: true,
-          min: 0
+    items: {
+      type: [
+        {
+          productId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "MenuItem",
+            required: true
+          },
+          name: {
+            type: String,
+            required: true
+          },
+          quantity: {
+            type: Number,
+            required: true,
+            min: 1
+          },
+          unitPrice: {
+            type: Number,
+            required: true,
+            min: 0
+          },
+          subtotal: {
+            type: Number,
+            required: true,
+            min: 0
+          }
         }
+      ],
+      required: true,
+      validate: {
+        validator: (items) => items.length > 0,
+        message: "An order must contain at least one item"
       }
-    ],
+    },
     totalAmount: {
       type: Number,
       required: true,
