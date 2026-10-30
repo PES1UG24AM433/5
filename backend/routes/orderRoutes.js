@@ -17,6 +17,93 @@ const STAFF_STATUS_TRANSITIONS = {
   Completed: []
 };
 
+// Staff-only order and sales summary for an inclusive date range.
+// Dates are interpreted as UTC calendar dates to keep the range deterministic.
+router.get(
+  "/summary",
+  authenticateStaff,
+  authorizeStaffRoles("staff", "manager"),
+  async (req, res) => {
+    const { startDate, endDate } = req.query;
+    const isValidDate = (value) => {
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const date = new Date(`${value}T00:00:00.000Z`);
+      return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+    };
+
+    if (!isValidDate(startDate) || !isValidDate(endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Provide valid startDate and endDate values in YYYY-MM-DD format."
+      });
+    }
+
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    const endExclusive = new Date(`${endDate}T00:00:00.000Z`);
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+
+    if (start > endExclusive || startDate > endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "The start date must be on or before the end date."
+      });
+    }
+
+    try {
+      const orders = await Order.find({
+        orderTime: { $gte: start, $lt: endExclusive }
+      })
+        .select("_id studentName orderTime totalAmount status paymentStatus")
+        .sort({ orderTime: -1 })
+        .lean();
+
+      const summary = orders.reduce((result, order) => {
+        result.totalOrders += 1;
+        if (order.status === "Placed") result.placedOrders += 1;
+        if (order.status === "Completed") result.completedOrders += 1;
+        if (order.status === "Cancelled") result.cancelledOrders += 1;
+        if (order.paymentStatus === "Success") result.successfulPayments += 1;
+        if (order.paymentStatus === "Pending") result.pendingPayments += 1;
+        if (order.paymentStatus === "Failed") result.failedPayments += 1;
+        // Only successful payments for non-cancelled orders count as sales.
+        if (order.paymentStatus === "Success" && order.status !== "Cancelled") {
+          result.salesTotalPaise += Math.round(Number(order.totalAmount) * 100);
+        }
+        return result;
+      }, {
+        totalOrders: 0,
+        placedOrders: 0,
+        completedOrders: 0,
+        cancelledOrders: 0,
+        successfulPayments: 0,
+        pendingPayments: 0,
+        failedPayments: 0,
+        salesTotalPaise: 0
+      });
+
+      return res.status(200).json({
+        success: true,
+        period: { startDate, endDate },
+        summary: { ...summary, salesTotal: summary.salesTotalPaise / 100 },
+        orders: orders.map((order) => ({
+          id: order._id,
+          studentName: order.studentName,
+          orderTime: order.orderTime,
+          totalAmount: order.totalAmount,
+          status: order.status,
+          paymentStatus: order.paymentStatus
+        }))
+      });
+    } catch (error) {
+      console.error("Order and sales summary error:", error.message);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to retrieve the order and sales summary."
+      });
+    }
+  }
+);
+
 // Staff-only incoming order queue.
 // This route must appear before /:orderId so "incoming" is not treated as an order ID.
 router.get(
