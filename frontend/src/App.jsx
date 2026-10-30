@@ -327,6 +327,18 @@ function App() {
                 </button>
 
                 <button
+                  className={
+                    route === "/staff/reports"
+                      ? "nav-link active"
+                      : "nav-link"
+                  }
+                  type="button"
+                  onClick={() => navigate("/staff/reports")}
+                >
+                  Reports
+                </button>
+
+                <button
                   className="nav-link"
                   type="button"
                   onClick={handleStaffLogout}
@@ -402,6 +414,10 @@ function App() {
           />
         )}
 
+        {route === "/staff/reports" && (
+          <StaffReportsPage staff={staff} onNavigate={navigate} />
+        )}
+
         {![
           "/",
           "/register",
@@ -410,7 +426,8 @@ function App() {
           "/orders",
           "/payment",
           "/staff/login",
-          "/staff/orders"
+          "/staff/orders",
+          "/staff/reports"
         ].includes(route) &&
           !route.startsWith("/orders/") && (
             <NotFoundPage onNavigate={navigate} />
@@ -980,6 +997,136 @@ function StaffOrdersPage({ staff, onNavigate }) {
             />
           ))}
         </div>
+      )}
+    </section>
+  );
+}
+
+function toDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatRupees(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 2
+  }).format(Number(value) || 0);
+}
+
+function StaffReportsPage({ staff, onNavigate }) {
+  const today = toDateInputValue(new Date());
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  const [startDate, setStartDate] = useState(toDateInputValue(weekAgo));
+  const [endDate, setEndDate] = useState(today);
+  const [report, setReport] = useState(null);
+  const [feedback, setFeedback] = useState({ type: "", text: "" });
+  const [loading, setLoading] = useState(false);
+
+  async function loadReport(event) {
+    if (event) event.preventDefault();
+    if (!staff) {
+      onNavigate("/staff/login");
+      return;
+    }
+    if (!startDate || !endDate || startDate > endDate) {
+      setFeedback({ type: "error", text: "Choose a valid date range. The start date must be on or before the end date." });
+      setReport(null);
+      return;
+    }
+
+    setLoading(true);
+    setFeedback({ type: "", text: "" });
+    try {
+      const params = new URLSearchParams({ startDate, endDate });
+      const data = await staffApiRequest(`/api/orders/summary?${params.toString()}`);
+      setReport(data);
+    } catch (error) {
+      setReport(null);
+      setFeedback({ type: "error", text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!staff) {
+      onNavigate("/staff/login");
+      return;
+    }
+    loadReport();
+  }, [staff]);
+
+  if (!staff) return null;
+  const summary = report?.summary;
+
+  return (
+    <section className="container staff-page staff-reports-page">
+      <div className="staff-page-heading">
+        <PageIntro
+          eyebrow="STAFF REPORTS"
+          title="Order and sales summary"
+          description="Review order activity and successfully paid sales for a selected period. Dates are interpreted as UTC calendar dates by the report API."
+        />
+      </div>
+
+      <form className="form-card staff-report-filter" onSubmit={loadReport}>
+        <label className="filter-select" htmlFor="report-start-date">
+          Start date
+          <input id="report-start-date" type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} required />
+        </label>
+        <label className="filter-select" htmlFor="report-end-date">
+          End date
+          <input id="report-end-date" type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} required />
+        </label>
+        <button className="button primary-button" type="submit" disabled={loading}>
+          {loading ? "Loading report..." : "Generate report"}
+        </button>
+      </form>
+
+      {feedback.text && <div className={`notice ${feedback.type}`} role={feedback.type === "error" ? "alert" : "status"}>{feedback.text}</div>}
+      {loading && !report && <LoadingState text="Loading order and sales summary..." />}
+
+      {summary && (
+        <>
+          <p className="staff-report-period">Period: <strong>{report.period.startDate}</strong> to <strong>{report.period.endDate}</strong></p>
+          <div className="staff-report-cards">
+            <article className="form-card staff-report-card"><span>Total orders</span><strong>{summary.totalOrders}</strong><small>All order statuses</small></article>
+            <article className="form-card staff-report-card"><span>Paid sales</span><strong>{formatRupees(summary.salesTotal)}</strong><small>Successful payments, excluding cancelled orders</small></article>
+            <article className="form-card staff-report-card"><span>Completed</span><strong>{summary.completedOrders}</strong><small>Orders completed by staff</small></article>
+            <article className="form-card staff-report-card"><span>Placed</span><strong>{summary.placedOrders}</strong><small>Awaiting processing</small></article>
+            <article className="form-card staff-report-card"><span>Cancelled</span><strong>{summary.cancelledOrders}</strong><small>Cancelled orders</small></article>
+            <article className="form-card staff-report-card"><span>Payment status</span><strong>{summary.successfulPayments} / {summary.pendingPayments} / {summary.failedPayments}</strong><small>Successful / pending / failed</small></article>
+          </div>
+
+          <div className="staff-report-table-wrap form-card">
+            <div className="staff-report-table-heading"><h2>Orders in this period</h2><span>{report.orders.length} records</span></div>
+            {report.orders.length === 0 ? (
+              <p className="staff-report-empty">No orders were found for the selected period.</p>
+            ) : (
+              <div className="staff-report-table-scroll">
+                <table className="staff-report-table">
+                  <thead><tr><th>Order ID</th><th>Student</th><th>Date and time</th><th>Order total</th><th>Order status</th><th>Payment</th></tr></thead>
+                  <tbody>{report.orders.map((order) => (
+                    <tr key={order.id}>
+                      <td className="staff-report-order-id">{order.id}</td>
+                      <td>{order.studentName || "—"}</td>
+                      <td>{new Date(order.orderTime).toLocaleString()}</td>
+                      <td>{formatRupees(order.totalAmount)}</td>
+                      <td><span className="status-pill">{order.status}</span></td>
+                      <td><span className="status-pill">{order.paymentStatus}</span></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <p className="staff-report-footnote">Sales are calculated from orders with payment status “Success” that are not cancelled. Failed and pending payments are not counted as sales.</p>
+        </>
       )}
     </section>
   );
