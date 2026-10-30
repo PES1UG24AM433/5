@@ -1175,3 +1175,48 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* CPS-F-020: staff order and sales reports */
+.staff-report-filter {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 22px;
+}
+.staff-report-filter .filter-select { flex: 1 1 190px; }
+.staff-report-filter input {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 6px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+}
+.staff-report-period { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+.staff-report-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.staff-report-card { display: grid; gap: 8px; padding: 20px; }
+.staff-report-card > span, .staff-report-card > small { color: var(--muted); font-size: 12px; }
+.staff-report-card > strong { color: var(--accent); font-size: clamp(22px, 3vw, 30px); overflow-wrap: anywhere; }
+.staff-report-table-wrap { padding: 0; overflow: hidden; }
+.staff-report-table-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px; border-bottom: 1px solid var(--line); }
+.staff-report-table-heading h2 { margin: 0; font-size: 20px; }
+.staff-report-table-heading span { color: var(--muted); font-size: 12px; }
+.staff-report-table-scroll { width: 100%; overflow-x: auto; }
+.staff-report-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.staff-report-table th, .staff-report-table td { padding: 13px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.staff-report-table th { color: var(--muted); background: var(--soft); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.staff-report-table tbody tr:last-child td { border-bottom: 0; }
+.staff-report-table .status-pill { margin: 0; }
+.staff-report-order-id { max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+.staff-report-empty { padding: 22px 24px; color: var(--muted); }
+.staff-report-footnote { color: var(--muted); font-size: 12px; line-height: 1.6; }
+@media (max-width: 760px) { .staff-report-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .staff-report-filter { align-items: stretch; flex-direction: column; } .staff-report-filter .filter-select { width: 100%; } .staff-report-filter > .button { width: 100%; } }
+@media (max-width: 480px) { .staff-report-cards { grid-template-columns: 1fr; } .staff-report-table-heading { align-items: flex-start; flex-direction: column; } }
