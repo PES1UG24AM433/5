@@ -755,21 +755,74 @@ button:disabled {
   margin-top: 22px;
 }
 
+.order-history-page {
+  padding-bottom: 80px;
+}
+
 .history-card {
+  display: grid;
+  gap: 18px;
+}
+
+.history-card-header,
+.history-card-footer {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+}
+
+.history-card-header .order-statuses {
+  justify-content: flex-end;
+}
+
+.history-card .status-pill {
+  margin: 0;
 }
 
 .history-card h2 {
   margin: 4px 0;
 }
 
-.history-card p:not(.eyebrow) {
+.history-date {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
+}
+
+.history-items {
+  display: grid;
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.history-item span {
+  display: grid;
+  gap: 4px;
+}
+
+.history-item small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.history-card-footer {
+  align-items: center;
+}
+
+.history-card-footer > strong {
+  color: var(--accent);
+  font-size: 17px;
 }
 
 .loading-state {
@@ -922,6 +975,20 @@ button:disabled {
   }
 
   .button-row .button {
+    width: 100%;
+  }
+
+  .history-card-header,
+  .history-card-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .history-card-header .order-statuses {
+    justify-content: flex-start;
+  }
+
+  .history-card-footer .button {
     width: 100%;
   }
 }

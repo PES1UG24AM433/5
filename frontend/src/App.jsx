@@ -1671,36 +1671,52 @@ function OrderSummary({ order }) {
 
 function OrdersPage({ student, onNavigate }) {
   const [orders, setOrders] = useState([]);
-  const [feedback, setFeedback] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(Boolean(student));
 
-  async function findOrders(event) {
-    event.preventDefault();
-
+  useEffect(() => {
     if (!student) {
-      onNavigate("/login");
+      setLoading(false);
       return;
     }
 
+    let active = true;
     setLoading(true);
-    setFeedback("");
+    setError("");
 
-    try {
-      const data = await apiRequest("/api/orders");
-      setOrders(data.orders);
+    apiRequest("/api/orders")
+      .then((data) => {
+        if (active) {
+        setOrders(
+          Array.isArray(data.orders)
+            ? data.orders.map((order) => ({
+                ...order,
+                formattedOrderTime: new Date(
+                  order.orderTime
+                ).toLocaleString()
+              }))
+            : []
+        );
+        }
+      })
+      .catch((requestError) => {
+        if (active) {
+          setError(requestError.message);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
 
-      if (!data.orders.length) {
-        setFeedback("No orders found for these details.");
-      }
-    } catch (error) {
-      setFeedback(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+    return () => {
+      active = false;
+    };
+  }, [student]);
 
   return (
-    <section className="container narrow-page">
+    <section className="container order-history-page">
       <PageIntro
         eyebrow="ORDER HISTORY"
         title="My orders"
@@ -1711,54 +1727,91 @@ function OrdersPage({ student, onNavigate }) {
         }
       />
 
-      <form className="form-card" onSubmit={findOrders}>
-        {!student && (
-          <div className="notice error">
-            You must be signed in to view orders.
-          </div>
-        )}
-
-        {feedback && (
-          <div className="notice" role="status">
-            {feedback}
-          </div>
-        )}
-
-        <button
-          className="button primary-button"
-          type="submit"
-          disabled={loading || !student}
-        >
-          {loading ? "Searching..." : "Load my orders"}
-        </button>
-      </form>
-
-      {orders.length > 0 && (
+      {!student ? (
+        <div className="form-card empty-state">
+          <div className="empty-icon">🔒</div>
+          <h2>Sign in to view your orders</h2>
+          <p>Your order history is available after you sign in.</p>
+          <button
+            className="button primary-button"
+            type="button"
+            onClick={() => onNavigate("/login")}
+          >
+            Sign in
+          </button>
+        </div>
+      ) : loading ? (
+        <LoadingState text="Loading your orders..." />
+      ) : error ? (
+        <div className="notice error" role="alert">
+          {error}
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            Try again
+          </button>
+        </div>
+      ) : !orders.length ? (
+        <div className="form-card empty-state">
+          <div className="empty-icon">🧾</div>
+          <h2>No orders yet</h2>
+          <p>
+            You have not placed any pre-orders. Browse the menu to
+            find something you&apos;ll enjoy.
+          </p>
+          <button
+            className="button primary-button"
+            type="button"
+            onClick={() => onNavigate("/")}
+          >
+            Browse menu
+          </button>
+        </div>
+      ) : (
         <div className="order-history">
           {orders.map((order) => (
-            <article
-              className="form-card history-card"
-              key={order.id}
-            >
-              <div>
-                <p className="eyebrow">
-                  ORDER {order.id}
-                </p>
-
-                <h2>
-                  ₹{order.totalAmount.toFixed(2)}
-                </h2>
-
-                <p>
-                  {new Date(
-                    order.orderTime
-                  ).toLocaleString()}
-                </p>
+            <article className="form-card history-card" key={order.id}>
+              <div className="history-card-header">
+                <div>
+                  <p className="eyebrow">ORDER {order.id}</p>
+                  <p className="history-date">
+                    {order.formattedOrderTime}
+                  </p>
+                </div>
+                <div className="order-statuses">
+                  <span className="status-pill">Order: {order.status}</span>
+                  <span className="status-pill">
+                    Payment: {order.paymentStatus}
+                  </span>
+                </div>
               </div>
 
-              <span className="status-pill">
-                {order.status}
-              </span>
+              <div className="history-items">
+                {order.items.map((item) => (
+                  <div className="history-item" key={item.productId}>
+                    <span>
+                      <strong>{item.name}</strong>
+                      <small>
+                        {item.quantity} × ₹{Number(item.unitPrice).toFixed(2)}
+                      </small>
+                    </span>
+                    <strong>₹{Number(item.subtotal).toFixed(2)}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="history-card-footer">
+                <strong>Total: ₹{Number(order.totalAmount).toFixed(2)}</strong>
+                <button
+                  className="button outline-button"
+                  type="button"
+                  onClick={() => onNavigate(`/orders/${order.id}`)}
+                >
+                  View order
+                </button>
+              </div>
             </article>
           ))}
         </div>
