@@ -284,8 +284,14 @@ router.get("/:orderId", authenticateStudent, async (req, res) => {
     return res.json({
       success: true,
       order: {
-        id: order._id,
-        items: order.items,
+        id: order._id.toString(),
+        items: order.items.map((item) => ({
+          productId: item.productId.toString(),
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          subtotal: item.subtotal
+        })),
         totalAmount: order.totalAmount,
         orderTime: order.orderTime,
         status: order.status,

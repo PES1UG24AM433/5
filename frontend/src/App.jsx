@@ -394,7 +394,6 @@ function App() {
         {route.startsWith("/orders/") && (
           <OrderConfirmationPage
             orderId={route.split("/")[2]}
-            fallbackOrder={latestOrder}
             onOrderLoaded={setLatestOrder}
             onNavigate={navigate}
           />
@@ -1481,36 +1480,43 @@ function CartPage({
 
 function OrderConfirmationPage({
   orderId,
-  fallbackOrder,
   onOrderLoaded,
   onNavigate
 }) {
-  const [order, setOrder] = useState(
-    fallbackOrder?.id === orderId
-      ? fallbackOrder
-      : null
-  );
-
+  const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    if (order) {
-      onOrderLoaded(order);
-      return;
-    }
-
+    let active = true;
+    setLoading(true);
+    setError("");
+    setOrder(null);
     apiRequest(
       `/api/orders/${encodeURIComponent(orderId)}`
     )
       .then((data) => {
-        setOrder(data.order);
-        onOrderLoaded(data.order);
+        if (active) {
+          setOrder(data.order);
+          onOrderLoaded(data.order);
+        }
       })
-      .catch((requestError) =>
-        setError(requestError.message)
-      );
-  }, [onOrderLoaded, order, orderId]);
+      .catch((requestError) => {
+        if (active) {
+          setError(requestError.message);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [onOrderLoaded, orderId]);
 
   async function cancelOrder() {
     setCancelling(true);
@@ -1539,24 +1545,20 @@ function OrderConfirmationPage({
     <section className="container narrow-page">
       <PageIntro
         eyebrow={
-          order
-            ? "ORDER CONFIRMED"
-            : error
-              ? "ORDER UNAVAILABLE"
-              : "ORDER CONFIRMATION"
+          error ? "ORDER UNAVAILABLE" : "ORDER TRACKING"
         }
         title={
           order
-            ? "Thanks for your order"
+            ? "Track your order"
             : error
               ? "We could not load this order"
               : "Loading your order"
         }
         description={
           order
-            ? "Your order has been recorded by the canteen."
+            ? "This status reflects the latest saved order information."
             : error
-              ? "The order confirmation could not be verified."
+              ? "Check the order ID or return to your order history."
               : "We are verifying your order with the canteen."
         }
       />
@@ -1564,15 +1566,31 @@ function OrderConfirmationPage({
       {error && (
         <div className="notice error" role="alert">
           {error}
+          <div className="button-row">
+            <button
+              className="button outline-button"
+              type="button"
+              onClick={() => onNavigate("/orders")}
+            >
+              Back to my orders
+            </button>
+          </div>
         </div>
       )}
 
-      {order ? (
+      {loading ? (
+        <LoadingState text="Loading the latest order status..." />
+      ) : order ? (
         <div className="form-card confirmation-card">
-          <div className="success-mark">✓</div>
+          <div className="success-mark" aria-hidden="true">✓</div>
 
           <p className="eyebrow">ORDER ID</p>
           <h2>{order.id}</h2>
+
+          <div className="tracking-status">
+            <span>Current order status</span>
+            <strong>{order.status}</strong>
+          </div>
 
           <OrderSummary order={order} />
 
@@ -1588,17 +1606,17 @@ function OrderConfirmationPage({
             <button
               className="button secondary-button"
               type="button"
-              onClick={() => onNavigate("/")}
+              onClick={() => onNavigate("/orders")}
             >
-              Back to menu
+              Back to my orders
             </button>
 
             <button
               className="button outline-button"
               type="button"
-              onClick={() => onNavigate("/orders")}
+              onClick={() => onNavigate("/")}
             >
-              View my orders
+              Browse menu
             </button>
 
             {order.status === "Placed" && (
@@ -1615,11 +1633,7 @@ function OrderConfirmationPage({
             )}
           </div>
         </div>
-      ) : (
-        !error && (
-          <LoadingState text="Loading your order..." />
-        )
-      )}
+      ) : null}
     </section>
   );
 }

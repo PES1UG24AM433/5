@@ -684,6 +684,27 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.tracking-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--soft);
+}
+
+.tracking-status span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.tracking-status strong {
+  color: var(--accent);
+}
+
 .order-summary {
   margin-top: 22px;
 }
