@@ -13,7 +13,27 @@ const menuRoutes = require("./routes/menuRoutes");
 
 
 const app = express();
+// Trust only explicitly configured reverse proxies.
+if (process.env.TRUSTED_PROXY) {
+  app.set("trust proxy", process.env.TRUSTED_PROXY);
+}
+// Require HTTPS in production while allowing local HTTP development.
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== "production") {
+    return next();
+  }
 
+  const isHttps = req.secure;
+
+  if (!isHttps) {
+    return res.status(403).json({
+      success: false,
+      message: "HTTPS is required for secure communication."
+    });
+  }
+
+  next();
+});
 app.use(cors());
 app.use(express.json({ limit: "100kb" }));
 app.use((error, req, res, next) => {

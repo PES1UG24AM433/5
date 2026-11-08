@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { apiRequest } from "./api";
 
 function CartValidator() {
   const [productId, setProductId] = useState("");
@@ -28,35 +28,25 @@ function CartValidator() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/cart/validate",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            items: [
-              {
-                productId: productId.trim(),
-                quantity: parsedQuantity
-              }
-            ]
-          })
-        }
-      );
+      const data = await apiRequest("/api/cart/validate", {
+        method: "POST",
+        body: JSON.stringify({
+          items: [
+            {
+              productId: productId.trim(),
+              quantity: parsedQuantity
+            }
+          ]
+        })
+      });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.valid) {
+      if (!data.valid) {
         throw new Error(data.message || "Cart validation failed.");
       }
 
       setMessage(data.message);
     } catch (err) {
-      setError(
-        err.message === "Failed to fetch"
-          ? "Cannot connect to the backend. Check that the server is running."
-          : err.message
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }

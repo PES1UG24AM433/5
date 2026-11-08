@@ -1,5 +1,5 @@
-
 import { useEffect, useState } from "react";
+import { apiRequest } from "./api";
 
 function OrderForm() {
   const [items, setItems] = useState([]);
@@ -14,10 +14,9 @@ function OrderForm() {
   const [menuLoading, setMenuLoading] = useState(true);
 
   async function loadMenu() {
-    const response = await fetch("http://localhost:5000/api/menu");
-    const data = await response.json();
+    const data = await apiRequest("/api/menu");
 
-    if (!response.ok || !data.success) {
+    if (!data.success) {
       throw new Error(data.message || "Unable to load menu.");
     }
 
@@ -77,10 +76,9 @@ function OrderForm() {
 
     try {
       // Refresh menu details before checkout.
-      const menuResponse = await fetch("http://localhost:5000/api/menu");
-      const menuData = await menuResponse.json();
+      const menuData = await apiRequest("/api/menu");
 
-      if (!menuResponse.ok || !menuData.success) {
+      if (!menuData.success) {
         throw new Error(
           menuData.message || "Unable to verify menu availability."
         );
@@ -111,9 +109,8 @@ function OrderForm() {
         );
       }
 
-      const response = await fetch("http://localhost:5000/api/orders", {
+      const data = await apiRequest("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId: studentId.trim(),
           studentName: studentName.trim(),
@@ -127,9 +124,7 @@ function OrderForm() {
         })
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(
           data.errors?.join(", ") ||
           data.message ||
@@ -142,11 +137,7 @@ function OrderForm() {
       );
       setQuantity("1");
     } catch (err) {
-      setError(
-        err.message === "Failed to fetch"
-          ? "Cannot connect to the backend. Check that the server is running."
-          : err.message
-      );
+      setError(err.message);
     } finally {
       setLoading(false);
     }

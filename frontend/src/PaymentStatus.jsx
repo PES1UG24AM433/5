@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { apiRequest } from "./api";
 
 function PaymentStatus() {
   const [orderId, setOrderId] = useState("");
@@ -19,26 +19,13 @@ function PaymentStatus() {
     setPaymentStatus("");
 
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/payments/${encodeURIComponent(
-          orderId.trim()
-        )}`,
+      const data = await apiRequest(
+        `/api/payments/${encodeURIComponent(orderId.trim())}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ outcome }),
+          body: JSON.stringify({ outcome })
         }
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Unable to update payment status."
-        );
-      }
 
       setPaymentStatus(data.paymentStatus);
       setMessage(data.message);
