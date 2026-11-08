@@ -1,5 +1,24 @@
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+// Production builds must use HTTPS for API communication.
+if (import.meta.env.PROD) {
+  try {
+    const apiUrl = new URL(API_BASE_URL, window.location.origin);
+
+    if (apiUrl.protocol !== "https:") {
+      throw new Error(
+        "Insecure API configuration: production requires an HTTPS API URL."
+      );
+    }
+  } catch (error) {
+    throw new Error(
+      error.message ||
+        "Invalid API URL. Configure a valid HTTPS API URL for production."
+    );
+  }
+}
 
 const AUTH_TOKEN_KEY = "campus-crave-student-token";
 const STUDENT_KEY = "campus-crave-student";
