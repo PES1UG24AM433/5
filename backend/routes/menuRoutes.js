@@ -22,7 +22,7 @@ router.get("/", async (req, res) => {
       items
     });
   } catch (error) {
-    console.error("Menu fetch error:", error.message);
+    console.error("Menu fetch failed.");
     return res.status(500).json({
       success: false,
       message: "Unable to fetch menu items."
@@ -69,7 +69,7 @@ router.post(
         item
       });
     } catch (error) {
-      console.error("Add menu item error:", error.message);
+      console.error("Adding menu item failed.");
       return res.status(500).json({
         success: false,
         message: "Unable to add menu item."
@@ -145,7 +145,7 @@ router.patch(
         });
       }
 
-      console.error("Update menu item error:", error.message);
+      console.error("Updating menu item failed.");
       return res.status(400).json({
         success: false,
         message: "Unable to update menu item."
@@ -185,7 +185,7 @@ router.delete("/:id", authenticateStaff, async (req, res) => {
       });
     }
 
-    console.error("Delete menu item error:", error.message);
+    console.error("Deleting menu item failed.");
     return res.status(500).json({
       success: false,
       message: "Unable to remove menu item."

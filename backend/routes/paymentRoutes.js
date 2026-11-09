@@ -59,7 +59,7 @@ router.post("/:orderId", authenticateStudent, async (req, res) => {
       paymentStatus: order.paymentStatus
     });
   } catch (error) {
-    console.error("Payment processing error:", error.message);
+    console.error("Payment processing failed.");
 
     return res.status(500).json({
       success: false,

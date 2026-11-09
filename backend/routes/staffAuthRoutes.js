@@ -70,7 +70,7 @@ router.post(
         }
       });
     } catch (error) {
-      console.error("Staff login error:", error.message);
+      console.error("Staff login failed.");
       return res.status(500).json({
         success: false,
         message: "Unable to log in. Please try again."
@@ -98,7 +98,7 @@ router.get("/me", authenticateStaff, async (req, res) => {
       staff
     });
   } catch (error) {
-    console.error("Staff verification error:", error.message);
+    console.error("Staff account verification failed.");
     return res.status(500).json({
       success: false,
       message: "Unable to verify staff account."
