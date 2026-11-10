@@ -312,8 +312,21 @@ router.post(
   authenticateStudent,
   [
     body("items")
-      .isArray({ min: 1 })
-      .withMessage("Your order must contain at least one item"),
+  .isArray({ min: 1 })
+  .withMessage("Your order must contain at least one item"),
+
+body("items.*")
+  .custom((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return false;
+    }
+
+    const allowedFields = ["productId", "quantity"];
+
+    return Object.keys(item).every((key) => allowedFields.includes(key)) &&
+      Object.keys(item).length === allowedFields.length;
+  })
+  .withMessage("Each order item must contain only productId and quantity."),
     body("items.*.productId")
       .isMongoId()
       .withMessage("Each item must have a valid product ID"),

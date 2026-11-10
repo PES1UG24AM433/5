@@ -1,4 +1,3 @@
-
 const express = require("express");
 const mongoose = require("mongoose");
 const MenuItem = require("../models/MenuItem");
@@ -15,12 +14,14 @@ router.post("/validate", async (req, res) => {
     });
   }
 
+  const quantities = new Map();
+
   for (const item of items) {
     if (
       !item ||
       typeof item.productId !== "string" ||
       !mongoose.isValidObjectId(item.productId) ||
-      !Number.isInteger(item.quantity) ||
+      !Number.isSafeInteger(item.quantity) ||
       item.quantity <= 0
     ) {
       return res.status(400).json({
@@ -28,11 +29,24 @@ router.post("/validate", async (req, res) => {
         message: "Each item must have a valid product ID and a positive whole-number quantity."
       });
     }
+
+    const productId = item.productId;
+    const combinedQuantity =
+      (quantities.get(productId) || 0) + item.quantity;
+
+    if (!Number.isSafeInteger(combinedQuantity)) {
+      return res.status(400).json({
+        valid: false,
+        message: "The requested quantity is too large."
+      });
+    }
+
+    quantities.set(productId, combinedQuantity);
   }
 
   try {
-    for (const item of items) {
-      const menuItem = await MenuItem.findById(item.productId);
+    for (const [productId, quantity] of quantities) {
+      const menuItem = await MenuItem.findById(productId);
 
       if (!menuItem) {
         return res.status(404).json({
@@ -48,7 +62,7 @@ router.post("/validate", async (req, res) => {
         });
       }
 
-      if (item.quantity > menuItem.stock) {
+      if (quantity > menuItem.stock) {
         return res.status(409).json({
           valid: false,
           message: `Only ${menuItem.stock} portion(s) of ${menuItem.name} are available. Please update your quantity.`
@@ -61,7 +75,7 @@ router.post("/validate", async (req, res) => {
       message: "Your cart is valid. You can proceed to checkout."
     });
   } catch (error) {
-    console.error("Cart validation error:", error.message);
+    console.error("Cart validation failed.");
 
     return res.status(500).json({
       valid: false,
