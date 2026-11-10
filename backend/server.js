@@ -77,7 +77,7 @@ app.use((req, res) => {
 });
 
 app.use((error, req, res, next) => {
-  console.error("Unhandled request error:", error.message);
+  console.error("An unexpected request error occurred.");
   res.status(500).json({
     success: false,
     message: "An unexpected server error occurred. Please try again."
@@ -95,6 +95,6 @@ mongoose
     });
   })
   .catch((error) => {
-    console.error("MongoDB connection failed:", error.message);
+    console.error("MongoDB connection failed. Check the database configuration and connection.");
     process.exit(1);
   });

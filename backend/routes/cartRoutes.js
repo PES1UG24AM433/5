@@ -61,7 +61,7 @@ router.post("/validate", async (req, res) => {
       message: "Your cart is valid. You can proceed to checkout."
     });
   } catch (error) {
-    console.error("Cart validation error:", error.message);
+    console.error("Cart validation failed.");
 
     return res.status(500).json({
       valid: false,

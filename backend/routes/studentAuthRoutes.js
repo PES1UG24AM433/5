@@ -59,7 +59,7 @@ router.post(
         });
       }
 
-      console.error("Registration error:", error.message);
+      console.error("Student registration failed.");
       return res.status(500).json({
         success: false,
         message: "Registration failed. Please try again."
@@ -131,7 +131,7 @@ router.post(
         }
       });
     } catch (error) {
-      console.error("Student login error:", error.message);
+      console.error("Student login failed.");
       return res.status(500).json({
         success: false,
         message: "Unable to log in. Please try again."
@@ -155,7 +155,7 @@ router.get("/me", authenticateStudent, async (req, res) => {
 
     return res.json({ success: true, student });
   } catch (error) {
-    console.error("Student verification error:", error.message);
+    console.error("Student account verification failed.");
     return res.status(500).json({
       success: false,
       message: "Unable to verify student account."

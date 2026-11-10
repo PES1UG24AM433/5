@@ -95,7 +95,7 @@ router.get(
         }))
       });
     } catch (error) {
-      console.error("Order and sales summary error:", error.message);
+      console.error("Order and sales summary retrieval failed.");
       return res.status(500).json({
         success: false,
         message: "Unable to retrieve the order and sales summary."
@@ -133,7 +133,7 @@ router.get(
         }))
       });
     } catch (error) {
-      console.error("Incoming order queue error:", error.message);
+      console.error("Incoming order queue retrieval failed.");
 
       return res.status(500).json({
         success: false,
@@ -213,7 +213,7 @@ router.patch(
         }
       });
     } catch (error) {
-      console.error("Order status update error:", error.message);
+      console.error("Order status update failed.");
 
       return res.status(500).json({
         success: false,
@@ -251,7 +251,7 @@ router.get("/", authenticateStudent, async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error("Order history error:", error.message);
+    console.error("Order history retrieval failed.");
     return res.status(500).json({
       success: false,
       message: "Unable to retrieve order history."
@@ -299,7 +299,7 @@ router.get("/:orderId", authenticateStudent, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Order lookup error:", error.message);
+    console.error("Order lookup failed.");
     return res.status(500).json({
       success: false,
       message: "Unable to retrieve the order."
@@ -385,7 +385,7 @@ router.post(
           menuItem.price < 0 ||
           !Number.isSafeInteger(Math.round(menuItem.price * 100))
         ) {
-          console.error(`Invalid price configured for menu item ${productId}.`);
+          console.error("Invalid price configured for a menu item.");
           return res.status(500).json({
             success: false,
             message: "A menu item has an invalid price. Please try again later."
@@ -454,7 +454,7 @@ router.post(
         }
       });
     } catch (error) {
-      console.error("Order placement error:", error.message);
+      console.error("Order placement failed.");
 
       return res.status(500).json({
         success: false,
@@ -510,7 +510,7 @@ router.patch(
         }
       });
     } catch (error) {
-      console.error("Order cancellation error:", error.message);
+      console.error("Order cancellation failed.");
 
       return res.status(500).json({
         success: false,
