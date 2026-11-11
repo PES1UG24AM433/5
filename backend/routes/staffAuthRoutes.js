@@ -31,7 +31,7 @@ router.post(
       const email = req.body.email.trim().toLowerCase();
       const { password } = req.body;
 
-      const staff = await Staff.findOne({ email });
+      const staff = await Staff.findOne({ email }).select("+password");
 
       if (!staff || !(await bcrypt.compare(password, staff.password))) {
         return res.status(401).json({

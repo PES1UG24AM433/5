@@ -1,5 +1,5 @@
-
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const staffSchema = new mongoose.Schema(
   {
@@ -17,7 +17,8 @@ const staffSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true
+      required: true,
+      select: false
     },
     role: {
       type: String,
@@ -27,5 +28,14 @@ const staffSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+staffSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+
+  // Avoid hashing a password that is already bcrypt-hashed.
+  if (/^\$2[aby]\$\d{2}\$/.test(this.password)) return;
+
+  this.password = await bcrypt.hash(this.password, 12);
+});
 
 module.exports = mongoose.model("Staff", staffSchema);

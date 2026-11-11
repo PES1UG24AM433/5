@@ -44,8 +44,7 @@ router.post(
         });
       }
 
-      const password = await bcrypt.hash(req.body.password, 12);
-      await Student.create({ name, email, studentId, password });
+      await Student.create({ name, email, studentId, password: req.body.password });
 
       return res.status(201).json({
         success: true,
@@ -87,7 +86,7 @@ router.post(
 
     try {
       const email = req.body.email.trim().toLowerCase();
-      const student = await Student.findOne({ email });
+      const student = await Student.findOne({ email }).select("+password");
       const passwordMatches = student
         ? await bcrypt.compare(req.body.password, student.password)
         : false;
