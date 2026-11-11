@@ -4,7 +4,8 @@ const mongoose = require("mongoose");
 const { body, validationResult } = require("express-validator");
 const MenuItem = require("../models/MenuItem");
 const {
-  authenticateStaff
+  authenticateStaff,
+  authorizeStaffRoles
 } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -34,6 +35,7 @@ router.get("/", async (req, res) => {
 router.post(
   "/",
   authenticateStaff,
+  authorizeStaffRoles("staff", "manager"),
   [
     body("name").trim().notEmpty().withMessage("Item name is required"),
     body("price").isFloat({ min: 0 }).withMessage("Price must be non-negative"),
@@ -82,6 +84,7 @@ router.post(
 router.patch(
   "/:id",
   authenticateStaff,
+  authorizeStaffRoles("staff", "manager"),
   [
     body("name").optional().trim().notEmpty(),
     body("price").optional().isFloat({ min: 0 }),
@@ -155,8 +158,12 @@ router.patch(
 );
 
 // Staff only: remove a menu item
-router.delete("/:id", authenticateStaff, async (req, res) => {
-  if (!mongoose.isValidObjectId(req.params.id)) {
+router.delete(
+  "/:id",
+  authenticateStaff,
+  authorizeStaffRoles("staff", "manager"),
+  async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
       message: "Invalid menu item ID."
