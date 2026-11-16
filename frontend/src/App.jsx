@@ -25,6 +25,7 @@ const emptyForm = {
 };
 
 const CART_STORAGE_KEY = "campus-crave-cart";
+const POST_LOGIN_ROUTE_KEY = "campus-crave-post-login-route";
 
 function loadStoredCart() {
   try {
@@ -113,7 +114,9 @@ function App() {
   function handleLogin(loginData) {
     saveStudentSession(loginData.token, loginData.student);
     setStudent(loginData.student);
-    navigate("/");
+    const returnRoute = window.sessionStorage.getItem(POST_LOGIN_ROUTE_KEY);
+    window.sessionStorage.removeItem(POST_LOGIN_ROUTE_KEY);
+    navigate(returnRoute === "/cart" ? returnRoute : "/");
   }
 
   function handleLogout() {
@@ -1281,6 +1284,7 @@ function CartPage({
     if (loading || !cart.length) return;
 
     if (!student) {
+      window.sessionStorage.setItem(POST_LOGIN_ROUTE_KEY, "/cart");
       onNavigate("/login");
       return;
     }
