@@ -17,6 +17,24 @@ const STAFF_STATUS_TRANSITIONS = {
   Completed: []
 };
 
+function sendOrderResponse(res, order, statusCode, message) {
+  return res.status(statusCode).json({
+    success: true,
+    message,
+    order: {
+      id: order._id,
+      studentId: order.studentId,
+      studentName: order.studentName,
+      studentEmail: order.studentEmail,
+      items: order.items,
+      totalAmount: order.totalAmount,
+      orderTime: order.orderTime,
+      status: order.status,
+      paymentStatus: order.paymentStatus
+    }
+  });
+}
+
 // Staff-only order and sales summary for an inclusive date range.
 // Dates are interpreted as UTC calendar dates to keep the range deterministic.
 router.get(
@@ -347,7 +365,37 @@ body("items.*")
       });
     }
 
+    const requestKey = req.headers["idempotency-key"];
+    if (
+      requestKey !== undefined &&
+      (typeof requestKey !== "string" ||
+        !requestKey.trim() ||
+        requestKey.length > 255)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Idempotency-Key must be a non-empty string of at most 255 characters."
+      });
+    }
+    const idempotencyKey = requestKey?.trim();
+
     try {
+      if (idempotencyKey) {
+        const existingOrder = await Order.findOne({
+          studentId: req.student.studentId,
+          idempotencyKey
+        });
+
+        if (existingOrder) {
+          return sendOrderResponse(
+            res,
+            existingOrder,
+            200,
+            "This order was already placed."
+          );
+        }
+      }
+
       const { items } = req.body;
       const quantities = new Map();
 
@@ -448,25 +496,41 @@ body("items.*")
         studentName: req.student.name,
         studentEmail: req.student.email,
         items: orderItems,
-        totalAmount
+        totalAmount,
+        ...(idempotencyKey ? { idempotencyKey } : {})
       });
 
-      return res.status(201).json({
-        success: true,
-        message: "Pre-order placed successfully.",
-        order: {
-          id: order._id,
-          studentId: order.studentId,
-          studentName: order.studentName,
-          studentEmail: order.studentEmail,
-          items: order.items,
-          totalAmount: order.totalAmount,
-          orderTime: order.orderTime,
-          status: order.status,
-          paymentStatus: order.paymentStatus
-        }
-      });
+      return sendOrderResponse(
+        res,
+        order,
+        201,
+        "Pre-order placed successfully."
+      );
     } catch (error) {
+      if (error?.code === 11000 && idempotencyKey) {
+        try {
+          const existingOrder = await Order.findOne({
+            studentId: req.student.studentId,
+            idempotencyKey
+          });
+
+          if (existingOrder) {
+            return sendOrderResponse(
+              res,
+              existingOrder,
+              200,
+              "This order was already placed."
+            );
+          }
+        } catch (lookupError) {
+          console.error("Existing order lookup after duplicate key failed.");
+          return res.status(500).json({
+            success: false,
+            message: "Unable to confirm whether your order was placed. Please try again."
+          });
+        }
+      }
+
       console.error("Order placement failed.");
 
       return res.status(500).json({

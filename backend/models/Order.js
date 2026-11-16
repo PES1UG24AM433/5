@@ -19,6 +19,9 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       lowercase: true
     },
+    idempotencyKey: {
+      type: String
+    },
     items: {
       type: [
         {
@@ -75,6 +78,14 @@ const orderSchema = new mongoose.Schema(
     }
   },
   { timestamps: true }
+);
+
+orderSchema.index(
+  { studentId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { idempotencyKey: { $type: "string" } }
+  }
 );
 
 module.exports = mongoose.model("Order", orderSchema);

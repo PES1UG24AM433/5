@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "./api";
 
 function OrderForm() {
@@ -12,6 +12,7 @@ function OrderForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [menuLoading, setMenuLoading] = useState(true);
+  const pendingOrderRequest = useRef(null);
 
   async function loadMenu() {
     const data = await apiRequest("/api/menu");
@@ -109,19 +110,32 @@ function OrderForm() {
         );
       }
 
+      const requestBody = {
+        studentId: studentId.trim(),
+        studentName: studentName.trim(),
+        studentEmail: studentEmail.trim(),
+        items: [
+          {
+            productId: latestItem._id,
+            quantity: parsedQuantity
+          }
+        ]
+      };
+      const serializedBody = JSON.stringify(requestBody);
+
+      if (pendingOrderRequest.current?.body !== serializedBody) {
+        pendingOrderRequest.current = {
+          body: serializedBody,
+          key: crypto.randomUUID()
+        };
+      }
+
       const data = await apiRequest("/api/orders", {
         method: "POST",
-        body: JSON.stringify({
-          studentId: studentId.trim(),
-          studentName: studentName.trim(),
-          studentEmail: studentEmail.trim(),
-          items: [
-            {
-              productId: latestItem._id,
-              quantity: parsedQuantity
-            }
-          ]
-        })
+        headers: {
+          "Idempotency-Key": pendingOrderRequest.current.key
+        },
+        body: serializedBody
       });
 
       if (!data.success) {
@@ -136,6 +150,7 @@ function OrderForm() {
         `Order placed successfully! Order ID: ${data.order.id}. Total: ₹${data.order.totalAmount}`
       );
       setQuantity("1");
+      pendingOrderRequest.current = null;
     } catch (err) {
       setError(err.message);
     } finally {
