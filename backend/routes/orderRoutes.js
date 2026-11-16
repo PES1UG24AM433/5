@@ -4,6 +4,7 @@ const { body, validationResult } = require("express-validator");
 const MenuItem = require("../models/MenuItem");
 const Order = require("../models/Order");
 const { authenticateStudent } = require("../middleware/studentAuthMiddleware");
+const { getSafeErrorDetails, logAuditEvent } = require("../utils/auditLogger");
 const {
   authenticateStaff,
   authorizeStaffRoles
@@ -219,8 +220,15 @@ router.patch(
         });
       }
 
+      const previousStatus = order.status;
       order.status = status;
       await order.save();
+      logAuditEvent("order.status_changed", {
+        orderId: order._id.toString(),
+        actorType: "staff",
+        previousStatus,
+        newStatus: order.status
+      });
 
       return res.status(200).json({
         success: true,
@@ -231,7 +239,11 @@ router.patch(
         }
       });
     } catch (error) {
-      console.error("Order status update failed.");
+      logAuditEvent("order.status_change_failed", {
+        orderId,
+        actorType: "staff",
+        ...getSafeErrorDetails(error)
+      });
 
       return res.status(500).json({
         success: false,
@@ -387,6 +399,10 @@ body("items.*")
         });
 
         if (existingOrder) {
+          logAuditEvent("order.idempotency_replayed", {
+            orderId: existingOrder._id.toString(),
+            actorType: "student"
+          });
           return sendOrderResponse(
             res,
             existingOrder,
@@ -499,6 +515,10 @@ body("items.*")
         totalAmount,
         ...(idempotencyKey ? { idempotencyKey } : {})
       });
+      logAuditEvent("order.created", {
+        orderId: order._id.toString(),
+        actorType: "student"
+      });
 
       return sendOrderResponse(
         res,
@@ -515,6 +535,10 @@ body("items.*")
           });
 
           if (existingOrder) {
+            logAuditEvent("order.idempotency_replayed", {
+              orderId: existingOrder._id.toString(),
+              actorType: "student"
+            });
             return sendOrderResponse(
               res,
               existingOrder,
@@ -523,7 +547,10 @@ body("items.*")
             );
           }
         } catch (lookupError) {
-          console.error("Existing order lookup after duplicate key failed.");
+          logAuditEvent("order.idempotency_lookup_failed", {
+            actorType: "student",
+            ...getSafeErrorDetails(lookupError)
+          });
           return res.status(500).json({
             success: false,
             message: "Unable to confirm whether your order was placed. Please try again."
@@ -531,7 +558,10 @@ body("items.*")
         }
       }
 
-      console.error("Order placement failed.");
+      logAuditEvent("order.creation_failed", {
+        actorType: "student",
+        ...getSafeErrorDetails(error)
+      });
 
       return res.status(500).json({
         success: false,
@@ -577,6 +607,12 @@ router.patch(
 
       order.status = "Cancelled";
       await order.save();
+      logAuditEvent("order.cancelled", {
+        orderId: order._id.toString(),
+        actorType: "student",
+        previousStatus: "Placed",
+        newStatus: order.status
+      });
 
       return res.status(200).json({
         success: true,
@@ -587,7 +623,11 @@ router.patch(
         }
       });
     } catch (error) {
-      console.error("Order cancellation failed.");
+      logAuditEvent("order.cancellation_failed", {
+        orderId,
+        actorType: "student",
+        ...getSafeErrorDetails(error)
+      });
 
       return res.status(500).json({
         success: false,

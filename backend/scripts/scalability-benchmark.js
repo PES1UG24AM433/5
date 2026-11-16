@@ -350,6 +350,14 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error.message);
+  console.error(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    event: "scalability_benchmark.failed",
+    errorName: typeof error?.name === "string" ? error.name : "Error",
+    errorCode: Number.isSafeInteger(error?.code) ||
+      (typeof error?.code === "string" && error.code.length <= 100)
+      ? error.code
+      : undefined
+  }));
   process.exitCode = 1;
 });

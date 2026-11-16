@@ -80,6 +80,8 @@ test("order data and ownership remain consistent through read, status update, an
   const originalFindById = Order.findById;
   const originalCreate = Order.create;
   const originalMenuFindById = MenuItem.findById;
+  const originalConsoleLog = console.log;
+  const auditRecords = [];
   const storedOrders = new Map();
   let nextOrderNumber = 31;
 
@@ -87,8 +89,10 @@ test("order data and ownership remain consistent through read, status update, an
     Order.findById = originalFindById;
     Order.create = originalCreate;
     MenuItem.findById = originalMenuFindById;
+    console.log = originalConsoleLog;
   });
 
+  console.log = (line) => auditRecords.push(JSON.parse(line));
   Order.findById = (id) => {
     const order = storedOrders.get(id) || null;
     return {
@@ -220,4 +224,115 @@ test("order data and ownership remain consistent through read, status update, an
   assert.equal(cancelResponse.status, 200);
   assert.equal(firstOrder.status, "Cancelled");
   assert.deepEqual(orderSnapshot(firstOrder), firstOrderSnapshot);
+
+  assert.equal(
+    auditRecords.filter((record) => record.event === "order.created").length,
+    2
+  );
+  assert.ok(auditRecords.some((record) =>
+    record.event === "order.status_changed" &&
+    record.orderId === secondOrder._id &&
+    record.previousStatus === "Placed" &&
+    record.newStatus === "Completed"
+  ));
+  assert.ok(auditRecords.some((record) =>
+    record.event === "order.cancelled" &&
+    record.orderId === firstOrder._id &&
+    record.previousStatus === "Placed" &&
+    record.newStatus === "Cancelled"
+  ));
+});
+
+test("order creation failures log a safe diagnostic without request contents", async (t) => {
+  const originalCreate = Order.create;
+  const originalMenuFindById = MenuItem.findById;
+  const originalConsoleLog = console.log;
+  const auditRecords = [];
+
+  t.after(() => {
+    Order.create = originalCreate;
+    MenuItem.findById = originalMenuFindById;
+    console.log = originalConsoleLog;
+  });
+
+  console.log = (line) => auditRecords.push(JSON.parse(line));
+  MenuItem.findById = async () => ({
+    _id: "507f1f77bcf86cd799439012",
+    name: "Integrity Test Wrap",
+    price: 12.35,
+    stock: 20,
+    available: true
+  });
+  Order.create = async () => {
+    const error = new Error("password=do-not-log bearer=do-not-log");
+    error.code = "TEST_FAILURE";
+    throw error;
+  };
+
+  const { server, url } = await createServer();
+  t.after(() => closeServer(server));
+
+  const response = await request(url, createToken(student), "POST", {
+    items: [{ productId: "507f1f77bcf86cd799439012", quantity: 1 }],
+    password: "request-password-must-not-be-logged"
+  });
+  assert.equal(response.status, 500);
+  assert.equal(auditRecords.length, 1);
+  assert.equal(auditRecords[0].event, "order.creation_failed");
+  assert.equal(auditRecords[0].actorType, "student");
+  assert.equal(auditRecords[0].errorName, "Error");
+  assert.equal(auditRecords[0].errorCode, "TEST_FAILURE");
+  assert.equal("password" in auditRecords[0], false);
+  assert.doesNotMatch(JSON.stringify(auditRecords[0]), /do-not-log|request-password/);
+});
+
+test("status and cancellation failures log safe order diagnostics", async (t) => {
+  const originalFindById = Order.findById;
+  const originalConsoleLog = console.log;
+  const auditRecords = [];
+
+  t.after(() => {
+    Order.findById = originalFindById;
+    console.log = originalConsoleLog;
+  });
+
+  console.log = (line) => auditRecords.push(JSON.parse(line));
+  Order.findById = async () => {
+    const error = new Error("authorization bearer token must not be logged");
+    error.name = "MongoError";
+    error.code = "TEST_READ_FAILURE";
+    throw error;
+  };
+
+  const { server, url } = await createServer();
+  t.after(() => closeServer(server));
+
+  const orderId = "507f1f77bcf86cd799439031";
+  const statusResponse = await request(
+    `${url}/${orderId}/status`,
+    createToken({ id: "507f1f77bcf86cd799439022" }, "staff", "staff"),
+    "PATCH",
+    { status: "Completed" }
+  );
+  const cancellationResponse = await request(
+    `${url}/${orderId}/cancel`,
+    createToken(student),
+    "PATCH"
+  );
+
+  assert.equal(statusResponse.status, 500);
+  assert.equal(cancellationResponse.status, 500);
+  assert.deepEqual(
+    auditRecords.map((record) => record.event),
+    ["order.status_change_failed", "order.cancellation_failed"]
+  );
+  for (const record of auditRecords) {
+    assert.equal(record.orderId, orderId);
+    assert.equal(record.errorName, "MongoError");
+    assert.equal(record.errorCode, "TEST_READ_FAILURE");
+  }
+  assert.doesNotMatch(
+    JSON.stringify(auditRecords),
+    /authorization bearer token must not be logged/
+  );
 });
